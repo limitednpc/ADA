@@ -136,7 +136,6 @@
       settings: { theme: 'auto', sort: 'updated', editorMode: 'split' },
       notes: {},
       log: [],
-      session: null,
       desk: { left: null, right: null }
     };
   }
@@ -242,7 +241,6 @@
       log((opts && opts.kind) || 'note.create', note.id,
         (opts && opts.text) || ('Not oluşturuldu: ' + (note.title || 'Başlıksız')));
     }
-    touchSession(note.id);
     scheduleSave();
     emit('note.create');
     return note;
@@ -267,7 +265,6 @@
         log('note.edit', id, 'Üzerinde çalışıldı: ' + (n.title || 'Başlıksız'));
       }
     }
-    touchSession(id);
     scheduleSave();
     emit('note.update');
     return n;
@@ -378,33 +375,6 @@
 
   function noteLog(id) {
     return state.log.filter(function (e) { return e.noteId === id; });
-  }
-
-  /* --------------------------------- seans --------------------------------- */
-
-  function touchSession(noteId) {
-    if (!state.session || !noteId) return;
-    if (state.session.touched.indexOf(noteId) === -1) state.session.touched.push(noteId);
-  }
-
-  function sessionStart() {
-    state.session = { id: uid('s'), startedAt: Date.now(), touched: [], note: '' };
-    log('session.start', null, 'Araştırma seansı başladı');
-    scheduleSave(); emit('session');
-    return state.session;
-  }
-
-  function sessionEnd() {
-    var s = state.session;
-    if (!s) return null;
-    s.endedAt = Date.now();
-    var mins = Math.max(1, Math.round((s.endedAt - s.startedAt) / 60000));
-    log('session.end', null, s.note || 'Seans tamamlandı', {
-      minutes: mins, touched: s.touched.slice(), startedAt: s.startedAt
-    });
-    state.session = null;
-    scheduleSave(); emit('session');
-    return { minutes: mins, touched: s.touched.length };
   }
 
   /* ------------------------- dosya deposu (IndexedDB) ---------------------- */
@@ -543,8 +513,6 @@
     tagCounts: tagCounts,
     log: log,
     noteLog: noteLog,
-    sessionStart: sessionStart,
-    sessionEnd: sessionEnd,
     setProfile: function (p) {
       if (!ADA.PROFILES[p]) return;
       state.profile = p; scheduleSave(); emit('profile');

@@ -10,7 +10,7 @@ Veriler yalnızca senin tarayıcında durur.
 ```
 index.html                 uygulama kabuğu
 assets/css/app.css         tema (açık/koyu) ve tüm arayüz
-assets/js/store.js         veri modeli · localStorage · IndexedDB · günlük · seans
+assets/js/store.js         veri modeli · localStorage · IndexedDB · araştırma günlüğü
 assets/js/markdown.js      alıntı/yorum blokları · [[bağlantı]] · #etiket · dışa aktarım biçimleri
 assets/js/search.js        bulanık arama (Türkçe aksan duyarsız) + alan filtreleri
 assets/js/graph.js         kuvvet yönelimli düğüm ağı (canvas, bağımlılıksız)
@@ -78,11 +78,12 @@ Durumlar: **Gelen kutusu · İncelenecek · Okunuyor · İşlendi · Tamamlandı
      açarsın. Soldan metin seçip **❝ Alıntıyı aktar** dersen, alıntı sağdaki nota
      kaynak künyesiyle (yazar, eser, sayfa, DOI) birlikte düşer ve altına boş bir
      yorum bloğu açılır.
-- **Araştırma günlüğü / zaman çizelgesi.** Not oluşturma, durum değişimi, hızlı yakalama
-  ve seanslar güne göre gruplanmış kronolojik akışta. **▶ Seans** düğmesi süre tutar,
-  o seansta dokunduğun notları sayar, bitirince ne yaptığını günlüğe yazar.
+- **Araştırma günlüğü / zaman çizelgesi.** Not oluşturma, durum değişimi, üzerinde
+  çalışma ve hızlı yakalama kayıtları güne göre gruplanmış kronolojik akışta: hangi gün
+  hangi kaynağı taradığını geriye dönük okuyabilirsin. Süre ölçen bir sayaç ya da seans
+  kavramı **yok** — günlük kendiliğinden birikir, sen bir şey başlatmak zorunda kalmazsın.
   Üstte özet: not sayısı, bu hafta eklenen, bağlantı sayısı, bağlantısız not, etiket,
-  toplam seans süresi.
+  künyeli kaynak.
 - **Alıntı – yorum ayrımı.** Editörde iki ayrı blok tipi:
 
   ```
@@ -194,7 +195,7 @@ aynı defterde hem makale hem kitap hem proje notu tutabilirsin.
       "updatedAt": 1710000900000
     }
   },
-  "log": [ { "id": "l-…", "ts": 1710000000000, "kind": "session.end", "minutes": 74, "text": "…" } ]
+  "log": [ { "id": "l-…", "ts": 1710000000000, "kind": "note.edit", "noteId": "n-abc123", "text": "Miller makalesi tarandı" } ]
 }
 ```
 

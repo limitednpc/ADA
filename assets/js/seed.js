@@ -130,11 +130,11 @@
         ago: 2
       },
       {
-        title: 'Okuma seansı — 12 Mart',
+        title: 'Okuma kaydı — 12 Mart',
         type: 'ders',
         status: 'gelen',
         tags: ['gunluk', 'okuma'],
-        meta: { source: 'Kendi çalışma seansı', date: '2025-03-12' },
+        meta: { source: 'Kendi çalışma defteri', date: '2025-03-12' },
         body:
           'Miller makalesinin ilk yarısı okundu, iki kavram notu çıkarıldı.\n\n' +
           ':: Sonraki adım: 4±1 tartışmasını açan Cowan (2001) taranacak. #incelenecek\n\n' +
@@ -184,19 +184,14 @@
       ADA.store.log('note.create', note.id, 'Not oluşturuldu: ' + n.title, { ts: t });
     });
 
-    ADA.store.log('session.end', null, 'Miller makalesi tarandı, iki kavram notu çıkarıldı',
-      { minutes: 74, ts: now - 6 * DAY + 3600000,
-        touched: [created['Miller 1956 — Sihirli sayı yedi'], created['Çalışma belleği kapasitesi']].filter(Boolean),
-        startedAt: now - 6 * DAY });
+    ADA.store.log('note.edit', created['Miller 1956 — Sihirli sayı yedi'],
+      'Miller makalesi tarandı, iki kavram notu çıkarıldı', { ts: now - 6 * DAY + 3600000 });
     ADA.store.log('note.status', created['Miller 1956 — Sihirli sayı yedi'],
       'Durum → Tamamlandı: Miller 1956 — Sihirli sayı yedi', { ts: now - 5.6 * DAY });
-    ADA.store.log('session.end', null, 'Zettelkasten üzerine okuma; iki kavram notu bağlandı',
-      { minutes: 38, ts: now - 4.6 * DAY, touched: [created['Zettelkasten yöntemi']].filter(Boolean),
-        startedAt: now - 4.6 * DAY - 2280000 });
-    ADA.store.log('session.end', null, 'Ong bölüm 4 okundu; alıntı-yorum ayrımı notu yazıldı',
-      { minutes: 51, ts: now - 2 * DAY + 5400000,
-        touched: [created['Dış bellek olarak yazı'], created['Not alırken alıntı-yorum ayrımı']].filter(Boolean),
-        startedAt: now - 2 * DAY });
+    ADA.store.log('note.edit', created['Zettelkasten yöntemi'],
+      'Zettelkasten üzerine okuma; iki kavram notu bağlandı', { ts: now - 4.6 * DAY });
+    ADA.store.log('note.edit', created['Dış bellek olarak yazı'],
+      'Ong bölüm 4 okundu; alıntı-yorum ayrımı notu yazıldı', { ts: now - 2 * DAY + 5400000 });
     ADA.store.log('capture', created['Grafik görünümü neden işe yarıyor?'],
       'Hızlı not: Grafik görünümü neden işe yarıyor?', { ts: now - 0.5 * DAY });
     ADA.store.log('import', null, 'Örnek veri kümesi yüklendi');

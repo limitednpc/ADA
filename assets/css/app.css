@@ -162,18 +162,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .menu-sep { height: 1px; background: var(--line); margin: 6px 2px; }
 .menu-panel .input { width: 100%; }
 
-/* --------------------------- seans şeridi ------------------------------- */
-.session-bar {
-  display: flex; align-items: center; gap: 10px; padding: 7px 14px;
-  background: var(--accent-soft); border-bottom: 1px solid var(--line); flex: 0 0 auto;
-}
-.session-bar .dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
-  animation: pulse 1.6s infinite;
-}
-@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
-.session-input { flex: 1 1 auto; }
-
 /* ------------------------------- yerleşim -------------------------------- */
 main { flex: 1 1 auto; min-height: 0; position: relative; }
 .view { position: absolute; inset: 0; display: none; }
@@ -493,10 +481,6 @@ textarea.desk-body {
 .tl-item .txt { color: var(--fg-2); }
 .tl-item a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .tl-item a:hover { text-decoration: underline; }
-.tl-session {
-  background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
-  border-radius: 8px; padding: 8px 12px; margin: 6px 0;
-}
 
 /* ------------------------------ kaynaklar -------------------------------- */
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }

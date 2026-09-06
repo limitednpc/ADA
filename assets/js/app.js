@@ -28,7 +28,6 @@
     fileUrls: {},
     metaOpen: null,          // null = türe göre otomatik
     graph: null,
-    sessionTimer: null,
     sourceSort: { key: 'updatedAt', dir: -1 }
   };
 
@@ -506,8 +505,7 @@
 
   function renderLog() {
     var log = S.state.log.slice();
-    if (logFilter === 'session') log = log.filter(function (e) { return /^session/.test(e.kind); });
-    else if (logFilter === 'note') log = log.filter(function (e) { return /^note/.test(e.kind); });
+    if (logFilter === 'note') log = log.filter(function (e) { return /^note/.test(e.kind); });
     else if (logFilter === 'source') log = log.filter(function (e) {
       var n = e.noteId && S.get(e.noteId);
       return n && ['makale', 'kitap', 'web', 'ders'].indexOf(n.type) >= 0;
@@ -518,15 +516,18 @@
     var linkCount = 0;
     Object.keys(idx.out).forEach(function (k) { linkCount += idx.out[k].length; });
     var week = Date.now() - 7 * 86400000;
-    var minutes = S.state.log.reduce(function (a, e) { return a + (e.minutes || 0); }, 0);
     var orph = S.orphans().length;
+    var sourced = notes.filter(function (n) {
+      var m = n.meta || {};
+      return m.author || m.source || m.url || m.doi;
+    }).length;
     $('#logStats').innerHTML = [
       ['Not', notes.length],
       ['Bu hafta eklenen', notes.filter(function (n) { return n.createdAt > week; }).length],
       ['Bağlantı', linkCount],
       ['Bağlantısız', orph],
       ['Etiket', Object.keys(S.tagCounts()).length],
-      ['Toplam seans', Math.round(minutes / 60) + ' sa ' + (minutes % 60) + ' dk']
+      ['Künyeli kaynak', sourced]
     ].map(function (p) {
       return '<div class="stat"><div class="v">' + p[1] + '</div><div class="k">' + p[0] + '</div></div>';
     }).join('');
@@ -542,21 +543,20 @@
 
     var icons = {
       'note.create': '✚', 'note.edit': '✎', 'note.delete': '🗑', 'note.status': '◐',
-      'session.start': '▶', 'session.end': '⏹', 'capture': '⚡', 'import': '⬇', 'export': '⬆'
+      'capture': '⚡', 'import': '⬇', 'export': '⬆'
     };
 
     $('#timeline').innerHTML = order.map(function (key) {
       var d = new Date(days[key][0].ts);
       var items = days[key].map(function (e) {
-        var link = e.noteId && S.get(e.noteId)
-          ? ' <a data-open="' + e.noteId + '">' + esc(S.get(e.noteId).title || 'Başlıksız') + '</a>' : '';
-        if (e.kind === 'session.end') {
-          return '<div class="tl-session"><div class="tl-item"><span class="time">' +
-            new Date(e.ts).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) +
-            '</span><span class="ico">⏹</span><span class="txt"><strong>' + (e.minutes || 0) +
-            ' dk seans</strong> — ' + esc(e.text) +
-            ((e.touched && e.touched.length) ? ' <span class="muted">(' + e.touched.length + ' not)</span>' : '') +
-            '</span></div></div>';
+        // Kayıt metni notun adını zaten taşıyorsa başlığı ikinci kez yazma.
+        var nt = e.noteId && S.get(e.noteId);
+        var link = '';
+        if (nt) {
+          var title = nt.title || 'Başlıksız';
+          link = e.text.indexOf(title) >= 0
+            ? ' <a data-open="' + e.noteId + '" title="notu aç">→</a>'
+            : ' <a data-open="' + e.noteId + '">' + esc(title) + '</a>';
         }
         return '<div class="tl-item"><span class="time">' +
           new Date(e.ts).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) +
@@ -566,7 +566,7 @@
       return '<div class="tl-day"><div class="tl-date">' +
         d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) +
         '</div>' + items + '</div>';
-    }).join('') || '<div class="muted">Henüz kayıt yok. Bir seans başlat ya da not ekle.</div>';
+    }).join('') || '<div class="muted">Henüz kayıt yok. Bir not ekledikçe burada birikir.</div>';
   }
 
   /* ------------------------------- kaynaklar ------------------------------- */
@@ -770,7 +770,6 @@
   var COMMANDS = [
     { label: 'Yeni not', hint: 'Ctrl/⌘ N', run: function () { createNote(); } },
     { label: 'Hızlı not', hint: 'Ctrl/⌘ ⇧ K', run: openQuick },
-    { label: 'Seans başlat / bitir', run: toggleSession },
     { label: 'Ağ görünümü', run: function () { setView('graph'); } },
     { label: 'Araştırma günlüğü', run: function () { setView('log'); } },
     { label: 'Kaynak künyeleri', run: function () { setView('sources'); } },
@@ -831,44 +830,6 @@
     }).join('');
     var sel = $('.palette-item.is-sel');
     if (sel) sel.scrollIntoView({ block: 'nearest' });
-  }
-
-  /* -------------------------------- seans ---------------------------------- */
-
-  function toggleSession() {
-    if (S.state.session) endSession(); else {
-      S.sessionStart();
-      renderSessionBar();
-      toast('Seans başladı — ne yaptığını şeride yazabilirsin');
-    }
-  }
-
-  function endSession() {
-    var s = S.state.session;
-    if (!s) return;
-    s.note = $('#sessionNote').value.trim();
-    var r = S.sessionEnd();
-    renderSessionBar();
-    if (r) toast(r.minutes + ' dk · ' + r.touched + ' not — günlüğe işlendi');
-    if (ui.view === 'log') renderLog();
-  }
-
-  function renderSessionBar() {
-    var s = S.state.session;
-    $('#sessionBar').hidden = !s;
-    $('#btnSession').textContent = s ? '⏹ Seans' : '▶ Seans';
-    $('#btnSession').classList.toggle('is-active', !!s);
-    if (ui.sessionTimer) { clearInterval(ui.sessionTimer); ui.sessionTimer = null; }
-    if (!s) return;
-    $('#sessionNote').value = s.note || '';
-    var tick = function () {
-      var d = Date.now() - s.startedAt;
-      var mm = Math.floor(d / 60000), ss = Math.floor(d / 1000) % 60;
-      $('#sessionTimer').textContent = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
-      $('#sessionTouched').textContent = s.touched.length + ' not';
-    };
-    tick();
-    ui.sessionTimer = setInterval(tick, 1000);
   }
 
   /* ------------------------------- dışa aktarım ---------------------------- */
@@ -1029,7 +990,6 @@
     renderFilters();
     renderList();
     renderEditor();
-    renderSessionBar();
     if (ui.view === 'log') renderLog();
     if (ui.view === 'sources') renderSources();
     if (ui.view === 'desk') renderDesk();
@@ -1288,11 +1248,6 @@
     });
 
     $('#btnQuick').addEventListener('click', openQuick);
-    $('#btnSession').addEventListener('click', toggleSession);
-    $('#btnSessionEnd').addEventListener('click', endSession);
-    $('#sessionNote').addEventListener('input', function () {
-      if (S.state.session) S.state.session.note = this.value;
-    });
     $('#btnTheme').addEventListener('click', cycleTheme);
 
     // hızlı not
@@ -1520,9 +1475,7 @@
       // ilk açılış: veri yok — kullanıcı örnek kümeyi kendisi yükler
       S.log('note.create', null, 'ADA ilk kez açıldı');
     }
-    // yarım kalmış seans varsa şeridi göster
     renderAll();
-    if (S.state.session) renderSessionBar();
 
     var first = filteredNotes()[0];
     if (first) openNote(first.id, { history: false });

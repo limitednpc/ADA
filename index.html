@@ -45,7 +45,6 @@
 
   <div class="topbar-actions">
     <button id="btnQuick" class="btn btn-accent" title="Hızlı Not (Ctrl/⌘ + Shift + K)">＋ Hızlı Not</button>
-    <button id="btnSession" class="btn" title="Araştırma seansı başlat/bitir">▶ Seans</button>
     <button id="btnTheme" class="btn btn-icon" title="Tema">◐</button>
     <details class="menu">
       <summary class="btn btn-icon" title="Menü">⋯</summary>
@@ -72,15 +71,6 @@
     </details>
   </div>
 </header>
-
-<div id="sessionBar" class="session-bar" hidden>
-  <span class="dot"></span>
-  <strong>Seans sürüyor</strong>
-  <span id="sessionTimer" class="mono">00:00</span>
-  <span id="sessionTouched" class="muted">0 not</span>
-  <input id="sessionNote" class="input session-input" placeholder="Bu seansta ne yapıyorsun? (günlüğe yazılır)">
-  <button id="btnSessionEnd" class="btn btn-sm">Seansı bitir</button>
-</div>
 
 <main id="main">
 
@@ -264,7 +254,6 @@
         <h2>Araştırma günlüğü</h2>
         <div class="seg" id="logFilter">
           <button class="seg-btn is-active" data-log="all">Tümü</button>
-          <button class="seg-btn" data-log="session">Seanslar</button>
           <button class="seg-btn" data-log="note">Notlar</button>
           <button class="seg-btn" data-log="source">Kaynaklar</button>
         </div>

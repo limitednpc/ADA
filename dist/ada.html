@@ -171,18 +171,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .menu-sep { height: 1px; background: var(--line); margin: 6px 2px; }
 .menu-panel .input { width: 100%; }
 
-/* --------------------------- seans şeridi ------------------------------- */
-.session-bar {
-  display: flex; align-items: center; gap: 10px; padding: 7px 14px;
-  background: var(--accent-soft); border-bottom: 1px solid var(--line); flex: 0 0 auto;
-}
-.session-bar .dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
-  animation: pulse 1.6s infinite;
-}
-@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
-.session-input { flex: 1 1 auto; }
-
 /* ------------------------------- yerleşim -------------------------------- */
 main { flex: 1 1 auto; min-height: 0; position: relative; }
 .view { position: absolute; inset: 0; display: none; }
@@ -502,10 +490,6 @@ textarea.desk-body {
 .tl-item .txt { color: var(--fg-2); }
 .tl-item a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .tl-item a:hover { text-decoration: underline; }
-.tl-session {
-  background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
-  border-radius: 8px; padding: 8px 12px; margin: 6px 0;
-}
 
 /* ------------------------------ kaynaklar -------------------------------- */
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }
@@ -641,7 +625,6 @@ textarea.desk-body {
 
   <div class="topbar-actions">
     <button id="btnQuick" class="btn btn-accent" title="Hızlı Not (Ctrl/⌘ + Shift + K)">＋ Hızlı Not</button>
-    <button id="btnSession" class="btn" title="Araştırma seansı başlat/bitir">▶ Seans</button>
     <button id="btnTheme" class="btn btn-icon" title="Tema">◐</button>
     <details class="menu">
       <summary class="btn btn-icon" title="Menü">⋯</summary>
@@ -668,15 +651,6 @@ textarea.desk-body {
     </details>
   </div>
 </header>
-
-<div id="sessionBar" class="session-bar" hidden>
-  <span class="dot"></span>
-  <strong>Seans sürüyor</strong>
-  <span id="sessionTimer" class="mono">00:00</span>
-  <span id="sessionTouched" class="muted">0 not</span>
-  <input id="sessionNote" class="input session-input" placeholder="Bu seansta ne yapıyorsun? (günlüğe yazılır)">
-  <button id="btnSessionEnd" class="btn btn-sm">Seansı bitir</button>
-</div>
 
 <main id="main">
 
@@ -860,7 +834,6 @@ textarea.desk-body {
         <h2>Araştırma günlüğü</h2>
         <div class="seg" id="logFilter">
           <button class="seg-btn is-active" data-log="all">Tümü</button>
-          <button class="seg-btn" data-log="session">Seanslar</button>
           <button class="seg-btn" data-log="note">Notlar</button>
           <button class="seg-btn" data-log="source">Kaynaklar</button>
         </div>
@@ -1058,7 +1031,6 @@ textarea.desk-body {
       settings: { theme: 'auto', sort: 'updated', editorMode: 'split' },
       notes: {},
       log: [],
-      session: null,
       desk: { left: null, right: null }
     };
   }
@@ -1164,7 +1136,6 @@ textarea.desk-body {
       log((opts && opts.kind) || 'note.create', note.id,
         (opts && opts.text) || ('Not oluşturuldu: ' + (note.title || 'Başlıksız')));
     }
-    touchSession(note.id);
     scheduleSave();
     emit('note.create');
     return note;
@@ -1189,7 +1160,6 @@ textarea.desk-body {
         log('note.edit', id, 'Üzerinde çalışıldı: ' + (n.title || 'Başlıksız'));
       }
     }
-    touchSession(id);
     scheduleSave();
     emit('note.update');
     return n;
@@ -1300,33 +1270,6 @@ textarea.desk-body {
 
   function noteLog(id) {
     return state.log.filter(function (e) { return e.noteId === id; });
-  }
-
-  /* --------------------------------- seans --------------------------------- */
-
-  function touchSession(noteId) {
-    if (!state.session || !noteId) return;
-    if (state.session.touched.indexOf(noteId) === -1) state.session.touched.push(noteId);
-  }
-
-  function sessionStart() {
-    state.session = { id: uid('s'), startedAt: Date.now(), touched: [], note: '' };
-    log('session.start', null, 'Araştırma seansı başladı');
-    scheduleSave(); emit('session');
-    return state.session;
-  }
-
-  function sessionEnd() {
-    var s = state.session;
-    if (!s) return null;
-    s.endedAt = Date.now();
-    var mins = Math.max(1, Math.round((s.endedAt - s.startedAt) / 60000));
-    log('session.end', null, s.note || 'Seans tamamlandı', {
-      minutes: mins, touched: s.touched.slice(), startedAt: s.startedAt
-    });
-    state.session = null;
-    scheduleSave(); emit('session');
-    return { minutes: mins, touched: s.touched.length };
   }
 
   /* ------------------------- dosya deposu (IndexedDB) ---------------------- */
@@ -1465,8 +1408,6 @@ textarea.desk-body {
     tagCounts: tagCounts,
     log: log,
     noteLog: noteLog,
-    sessionStart: sessionStart,
-    sessionEnd: sessionEnd,
     setProfile: function (p) {
       if (!ADA.PROFILES[p]) return;
       state.profile = p; scheduleSave(); emit('profile');
@@ -2464,11 +2405,11 @@ textarea.desk-body {
         ago: 2
       },
       {
-        title: 'Okuma seansı — 12 Mart',
+        title: 'Okuma kaydı — 12 Mart',
         type: 'ders',
         status: 'gelen',
         tags: ['gunluk', 'okuma'],
-        meta: { source: 'Kendi çalışma seansı', date: '2025-03-12' },
+        meta: { source: 'Kendi çalışma defteri', date: '2025-03-12' },
         body:
           'Miller makalesinin ilk yarısı okundu, iki kavram notu çıkarıldı.\n\n' +
           ':: Sonraki adım: 4±1 tartışmasını açan Cowan (2001) taranacak. #incelenecek\n\n' +
@@ -2518,19 +2459,14 @@ textarea.desk-body {
       ADA.store.log('note.create', note.id, 'Not oluşturuldu: ' + n.title, { ts: t });
     });
 
-    ADA.store.log('session.end', null, 'Miller makalesi tarandı, iki kavram notu çıkarıldı',
-      { minutes: 74, ts: now - 6 * DAY + 3600000,
-        touched: [created['Miller 1956 — Sihirli sayı yedi'], created['Çalışma belleği kapasitesi']].filter(Boolean),
-        startedAt: now - 6 * DAY });
+    ADA.store.log('note.edit', created['Miller 1956 — Sihirli sayı yedi'],
+      'Miller makalesi tarandı, iki kavram notu çıkarıldı', { ts: now - 6 * DAY + 3600000 });
     ADA.store.log('note.status', created['Miller 1956 — Sihirli sayı yedi'],
       'Durum → Tamamlandı: Miller 1956 — Sihirli sayı yedi', { ts: now - 5.6 * DAY });
-    ADA.store.log('session.end', null, 'Zettelkasten üzerine okuma; iki kavram notu bağlandı',
-      { minutes: 38, ts: now - 4.6 * DAY, touched: [created['Zettelkasten yöntemi']].filter(Boolean),
-        startedAt: now - 4.6 * DAY - 2280000 });
-    ADA.store.log('session.end', null, 'Ong bölüm 4 okundu; alıntı-yorum ayrımı notu yazıldı',
-      { minutes: 51, ts: now - 2 * DAY + 5400000,
-        touched: [created['Dış bellek olarak yazı'], created['Not alırken alıntı-yorum ayrımı']].filter(Boolean),
-        startedAt: now - 2 * DAY });
+    ADA.store.log('note.edit', created['Zettelkasten yöntemi'],
+      'Zettelkasten üzerine okuma; iki kavram notu bağlandı', { ts: now - 4.6 * DAY });
+    ADA.store.log('note.edit', created['Dış bellek olarak yazı'],
+      'Ong bölüm 4 okundu; alıntı-yorum ayrımı notu yazıldı', { ts: now - 2 * DAY + 5400000 });
     ADA.store.log('capture', created['Grafik görünümü neden işe yarıyor?'],
       'Hızlı not: Grafik görünümü neden işe yarıyor?', { ts: now - 0.5 * DAY });
     ADA.store.log('import', null, 'Örnek veri kümesi yüklendi');
@@ -2573,7 +2509,6 @@ textarea.desk-body {
     fileUrls: {},
     metaOpen: null,          // null = türe göre otomatik
     graph: null,
-    sessionTimer: null,
     sourceSort: { key: 'updatedAt', dir: -1 }
   };
 
@@ -3051,8 +2986,7 @@ textarea.desk-body {
 
   function renderLog() {
     var log = S.state.log.slice();
-    if (logFilter === 'session') log = log.filter(function (e) { return /^session/.test(e.kind); });
-    else if (logFilter === 'note') log = log.filter(function (e) { return /^note/.test(e.kind); });
+    if (logFilter === 'note') log = log.filter(function (e) { return /^note/.test(e.kind); });
     else if (logFilter === 'source') log = log.filter(function (e) {
       var n = e.noteId && S.get(e.noteId);
       return n && ['makale', 'kitap', 'web', 'ders'].indexOf(n.type) >= 0;
@@ -3063,15 +2997,18 @@ textarea.desk-body {
     var linkCount = 0;
     Object.keys(idx.out).forEach(function (k) { linkCount += idx.out[k].length; });
     var week = Date.now() - 7 * 86400000;
-    var minutes = S.state.log.reduce(function (a, e) { return a + (e.minutes || 0); }, 0);
     var orph = S.orphans().length;
+    var sourced = notes.filter(function (n) {
+      var m = n.meta || {};
+      return m.author || m.source || m.url || m.doi;
+    }).length;
     $('#logStats').innerHTML = [
       ['Not', notes.length],
       ['Bu hafta eklenen', notes.filter(function (n) { return n.createdAt > week; }).length],
       ['Bağlantı', linkCount],
       ['Bağlantısız', orph],
       ['Etiket', Object.keys(S.tagCounts()).length],
-      ['Toplam seans', Math.round(minutes / 60) + ' sa ' + (minutes % 60) + ' dk']
+      ['Künyeli kaynak', sourced]
     ].map(function (p) {
       return '<div class="stat"><div class="v">' + p[1] + '</div><div class="k">' + p[0] + '</div></div>';
     }).join('');
@@ -3087,21 +3024,20 @@ textarea.desk-body {
 
     var icons = {
       'note.create': '✚', 'note.edit': '✎', 'note.delete': '🗑', 'note.status': '◐',
-      'session.start': '▶', 'session.end': '⏹', 'capture': '⚡', 'import': '⬇', 'export': '⬆'
+      'capture': '⚡', 'import': '⬇', 'export': '⬆'
     };
 
     $('#timeline').innerHTML = order.map(function (key) {
       var d = new Date(days[key][0].ts);
       var items = days[key].map(function (e) {
-        var link = e.noteId && S.get(e.noteId)
-          ? ' <a data-open="' + e.noteId + '">' + esc(S.get(e.noteId).title || 'Başlıksız') + '</a>' : '';
-        if (e.kind === 'session.end') {
-          return '<div class="tl-session"><div class="tl-item"><span class="time">' +
-            new Date(e.ts).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) +
-            '</span><span class="ico">⏹</span><span class="txt"><strong>' + (e.minutes || 0) +
-            ' dk seans</strong> — ' + esc(e.text) +
-            ((e.touched && e.touched.length) ? ' <span class="muted">(' + e.touched.length + ' not)</span>' : '') +
-            '</span></div></div>';
+        // Kayıt metni notun adını zaten taşıyorsa başlığı ikinci kez yazma.
+        var nt = e.noteId && S.get(e.noteId);
+        var link = '';
+        if (nt) {
+          var title = nt.title || 'Başlıksız';
+          link = e.text.indexOf(title) >= 0
+            ? ' <a data-open="' + e.noteId + '" title="notu aç">→</a>'
+            : ' <a data-open="' + e.noteId + '">' + esc(title) + '</a>';
         }
         return '<div class="tl-item"><span class="time">' +
           new Date(e.ts).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) +
@@ -3111,7 +3047,7 @@ textarea.desk-body {
       return '<div class="tl-day"><div class="tl-date">' +
         d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) +
         '</div>' + items + '</div>';
-    }).join('') || '<div class="muted">Henüz kayıt yok. Bir seans başlat ya da not ekle.</div>';
+    }).join('') || '<div class="muted">Henüz kayıt yok. Bir not ekledikçe burada birikir.</div>';
   }
 
   /* ------------------------------- kaynaklar ------------------------------- */
@@ -3315,7 +3251,6 @@ textarea.desk-body {
   var COMMANDS = [
     { label: 'Yeni not', hint: 'Ctrl/⌘ N', run: function () { createNote(); } },
     { label: 'Hızlı not', hint: 'Ctrl/⌘ ⇧ K', run: openQuick },
-    { label: 'Seans başlat / bitir', run: toggleSession },
     { label: 'Ağ görünümü', run: function () { setView('graph'); } },
     { label: 'Araştırma günlüğü', run: function () { setView('log'); } },
     { label: 'Kaynak künyeleri', run: function () { setView('sources'); } },
@@ -3376,44 +3311,6 @@ textarea.desk-body {
     }).join('');
     var sel = $('.palette-item.is-sel');
     if (sel) sel.scrollIntoView({ block: 'nearest' });
-  }
-
-  /* -------------------------------- seans ---------------------------------- */
-
-  function toggleSession() {
-    if (S.state.session) endSession(); else {
-      S.sessionStart();
-      renderSessionBar();
-      toast('Seans başladı — ne yaptığını şeride yazabilirsin');
-    }
-  }
-
-  function endSession() {
-    var s = S.state.session;
-    if (!s) return;
-    s.note = $('#sessionNote').value.trim();
-    var r = S.sessionEnd();
-    renderSessionBar();
-    if (r) toast(r.minutes + ' dk · ' + r.touched + ' not — günlüğe işlendi');
-    if (ui.view === 'log') renderLog();
-  }
-
-  function renderSessionBar() {
-    var s = S.state.session;
-    $('#sessionBar').hidden = !s;
-    $('#btnSession').textContent = s ? '⏹ Seans' : '▶ Seans';
-    $('#btnSession').classList.toggle('is-active', !!s);
-    if (ui.sessionTimer) { clearInterval(ui.sessionTimer); ui.sessionTimer = null; }
-    if (!s) return;
-    $('#sessionNote').value = s.note || '';
-    var tick = function () {
-      var d = Date.now() - s.startedAt;
-      var mm = Math.floor(d / 60000), ss = Math.floor(d / 1000) % 60;
-      $('#sessionTimer').textContent = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
-      $('#sessionTouched').textContent = s.touched.length + ' not';
-    };
-    tick();
-    ui.sessionTimer = setInterval(tick, 1000);
   }
 
   /* ------------------------------- dışa aktarım ---------------------------- */
@@ -3574,7 +3471,6 @@ textarea.desk-body {
     renderFilters();
     renderList();
     renderEditor();
-    renderSessionBar();
     if (ui.view === 'log') renderLog();
     if (ui.view === 'sources') renderSources();
     if (ui.view === 'desk') renderDesk();
@@ -3833,11 +3729,6 @@ textarea.desk-body {
     });
 
     $('#btnQuick').addEventListener('click', openQuick);
-    $('#btnSession').addEventListener('click', toggleSession);
-    $('#btnSessionEnd').addEventListener('click', endSession);
-    $('#sessionNote').addEventListener('input', function () {
-      if (S.state.session) S.state.session.note = this.value;
-    });
     $('#btnTheme').addEventListener('click', cycleTheme);
 
     // hızlı not
@@ -4065,9 +3956,7 @@ textarea.desk-body {
       // ilk açılış: veri yok — kullanıcı örnek kümeyi kendisi yükler
       S.log('note.create', null, 'ADA ilk kez açıldı');
     }
-    // yarım kalmış seans varsa şeridi göster
     renderAll();
-    if (S.state.session) renderSessionBar();
 
     var first = filteredNotes()[0];
     if (first) openNote(first.id, { history: false });
