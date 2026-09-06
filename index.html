@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADA · Araştırma & Düşünce Atölyesi</title>
+<meta name="description" content="Yerel çalışan, çift yönlü bağlantılı kişisel bilgi yönetimi (PKM) atölyesi.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<script>
+/* Tema önyükleyici: uygulama betikleri yüklenmeden önce çalışır ki
+   koyu temada açık renkli bir "flash" görünmesin. */
+(function () {
+  try {
+    var db = JSON.parse(localStorage.getItem('ada.db.v1') || '{}');
+    var t = (db.settings && db.settings.theme) || 'auto';
+    if (t === 'auto') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();
+</script>
+
+<header class="topbar">
+  <div class="brand" title="Araştırma &amp; Düşünce Atölyesi">
+    <span class="brand-mark">ADA</span>
+    <span class="brand-sub">Araştırma &amp; Düşünce Atölyesi</span>
+  </div>
+
+  <nav class="views" id="viewNav">
+    <button class="vtab is-active" data-view="notes">Notlar</button>
+    <button class="vtab" data-view="desk">Çalışma Masası</button>
+    <button class="vtab" data-view="graph">Ağ</button>
+    <button class="vtab" data-view="log">Günlük</button>
+    <button class="vtab" data-view="sources">Kaynaklar</button>
+  </nav>
+
+  <div class="search-wrap">
+    <input id="globalSearch" type="search" autocomplete="off" spellcheck="false"
+           placeholder="Ara:  metin · #etiket · tur:makale · durum:incelenecek · yazar:…">
+    <div id="searchResults" class="dropdown" hidden></div>
+  </div>
+
+  <div class="topbar-actions">
+    <button id="btnQuick" class="btn btn-accent" title="Hızlı Not (Ctrl/⌘ + Shift + K)">＋ Hızlı Not</button>
+    <button id="btnSession" class="btn" title="Araştırma seansı başlat/bitir">▶ Seans</button>
+    <button id="btnTheme" class="btn btn-icon" title="Tema">◐</button>
+    <details class="menu">
+      <summary class="btn btn-icon" title="Menü">⋯</summary>
+      <div class="menu-panel">
+        <div class="menu-title">Profil</div>
+        <select id="profileSelect" class="input">
+          <option value="akademik">Akademik / bilimsel makale</option>
+          <option value="metin">Kitap &amp; metin analizi</option>
+          <option value="proje">Genel proje fikirleri</option>
+        </select>
+        <div class="menu-sep"></div>
+        <div class="menu-title">Veri</div>
+        <button class="menu-item" data-cmd="export-json">JSON yedeği indir</button>
+        <button class="menu-item" data-cmd="import-json">JSON yedeği yükle</button>
+        <button class="menu-item" data-cmd="export-md">Tümünü Markdown olarak dışa aktar</button>
+        <button class="menu-item" data-cmd="export-html">Tümünü HTML olarak dışa aktar</button>
+        <button class="menu-item" data-cmd="export-pdf">PDF / Yazdır</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" data-cmd="seed">Örnek veri yükle</button>
+        <button class="menu-item danger" data-cmd="wipe">Tüm verileri sil</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" data-cmd="help">Kısayollar &amp; söz dizimi</button>
+      </div>
+    </details>
+  </div>
+</header>
+
+<div id="sessionBar" class="session-bar" hidden>
+  <span class="dot"></span>
+  <strong>Seans sürüyor</strong>
+  <span id="sessionTimer" class="mono">00:00</span>
+  <span id="sessionTouched" class="muted">0 not</span>
+  <input id="sessionNote" class="input session-input" placeholder="Bu seansta ne yapıyorsun? (günlüğe yazılır)">
+  <button id="btnSessionEnd" class="btn btn-sm">Seansı bitir</button>
+</div>
+
+<main id="main">
+
+  <!-- ============================ NOTLAR ============================ -->
+  <section class="view is-active" data-view="notes">
+    <aside class="pane pane-left" id="paneLeft">
+      <div class="pane-head">
+        <div class="seg" id="listSort">
+          <button class="seg-btn is-active" data-sort="updated">Güncel</button>
+          <button class="seg-btn" data-sort="created">Yeni</button>
+          <button class="seg-btn" data-sort="title">A-Z</button>
+        </div>
+        <button class="btn btn-sm" id="btnNew" title="Yeni not (Ctrl/⌘ + N)">＋ Not</button>
+      </div>
+
+      <div class="filters" id="filters">
+        <div class="filter-row" id="filterTypes"></div>
+        <div class="filter-row" id="filterStatus"></div>
+        <details class="filter-block" open>
+          <summary>Etiketler</summary>
+          <div id="tagTree" class="tag-tree"></div>
+        </details>
+        <details class="filter-block">
+          <summary>Görünüm</summary>
+          <div class="filter-row">
+            <button class="chip" data-special="orphans">Bağlantısız notlar</button>
+            <button class="chip" data-special="untagged">Etiketsiz</button>
+            <button class="chip" data-special="attachments">Ekli dosyalar</button>
+          </div>
+        </details>
+        <button class="btn btn-sm btn-ghost" id="btnClearFilters" hidden>Filtreleri temizle</button>
+      </div>
+
+      <div class="list-meta"><span id="listCount"></span></div>
+      <div class="note-list" id="noteList"></div>
+    </aside>
+
+    <div class="pane pane-center" id="paneCenter">
+      <div id="editorEmpty" class="empty">
+        <div class="empty-art">🧭</div>
+        <h2>Atomik bir not seç ya da yenisini aç</h2>
+        <p>Tek bir kavrama odaklanan küçük notlar yaz, <code>[[Kavram]]</code> ile birbirine bağla.<br>
+           Ağ görünümü bağlantısız kalan fikirleri sana gösterir.</p>
+        <div class="empty-actions">
+          <button class="btn btn-accent" data-cmd="new">Yeni not</button>
+          <button class="btn" data-cmd="seed">Örnek veri yükle</button>
+        </div>
+      </div>
+
+      <div id="editor" hidden>
+        <div class="editor-head">
+          <input id="noteTitle" class="title-input" placeholder="Başlık — tek bir kavram">
+          <div class="editor-head-actions">
+            <div class="seg" id="editorMode">
+              <button class="seg-btn" data-mode="write" title="Yalnız yazım">Yazım</button>
+              <button class="seg-btn is-active" data-mode="split" title="Çift panel (Ctrl/⌘ + E)">İkili</button>
+              <button class="seg-btn" data-mode="read" title="Yalnız okuma">Okuma</button>
+            </div>
+            <button class="btn btn-icon" id="btnMetaToggle" title="Kaynak künyesi">ⓘ</button>
+            <button class="btn btn-icon" id="btnMore" title="Daha fazla">⋯</button>
+            <div class="popover" id="notePopover" hidden>
+              <button class="menu-item" data-cmd="note-md">Markdown indir</button>
+              <button class="menu-item" data-cmd="note-html">HTML indir</button>
+              <button class="menu-item" data-cmd="note-print">PDF / Yazdır</button>
+              <button class="menu-item" data-cmd="note-copy">Panoya kopyala</button>
+              <button class="menu-item" data-cmd="note-desk">Çalışma masasına al</button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" data-cmd="note-duplicate">Kopyasını oluştur</button>
+              <button class="menu-item danger" data-cmd="note-delete">Notu sil</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="meta-panel" id="metaPanel" hidden></div>
+
+        <div class="tagbar" id="tagBar"></div>
+
+        <div class="toolbar" id="toolbar">
+          <button class="tb" data-ins="h2" title="Başlık">H</button>
+          <button class="tb" data-ins="bold" title="Kalın (Ctrl/⌘ + B)"><b>B</b></button>
+          <button class="tb" data-ins="italic" title="İtalik (Ctrl/⌘ + I)"><i>I</i></button>
+          <button class="tb" data-ins="mark" title="Vurgu">▮</button>
+          <span class="tb-sep"></span>
+          <button class="tb tb-quote" data-ins="quote" title="Alıntı bloğu — ham kaynak (Ctrl/⌘ + Shift + A)">❝ Alıntı</button>
+          <button class="tb tb-comment" data-ins="comment" title="Yorum bloğu — kendi sentezin (Ctrl/⌘ + Shift + Y)">✎ Yorum</button>
+          <span class="tb-sep"></span>
+          <button class="tb" data-ins="link" title="Bağlantı">🔗</button>
+          <button class="tb" data-ins="wiki" title="Not bağlantısı [[ ]] (Ctrl/⌘ + L)">[[ ]]</button>
+          <button class="tb" data-ins="tag" title="Etiket">#</button>
+          <button class="tb" data-ins="list" title="Liste">•</button>
+          <button class="tb" data-ins="code" title="Kod">‹›</button>
+          <span class="tb-sep"></span>
+          <button class="tb" data-ins="file" title="Dosya / görsel ekle">📎</button>
+          <span class="tb-flex"></span>
+          <span class="tb-stat" id="editorStats"></span>
+        </div>
+
+        <div class="editor-body" id="editorBody">
+          <div class="editor-col editor-col-write">
+            <div class="ref-bar" id="refBar" hidden></div>
+            <textarea id="noteBody" spellcheck="false" placeholder="Alıntıyı &gt; ile, kendi yorumunu :: ile başlat.  [[Kavram]] yazarak bağlantı kur, #etiket ile sınıfla."></textarea>
+          </div>
+          <div class="editor-split"></div>
+          <div class="editor-col editor-col-read">
+            <div class="reader" id="preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="pane pane-right" id="paneRight">
+      <div class="side-block">
+        <div class="side-head">Çift yönlü bağlantılar</div>
+        <div class="side-sub">Bu nota atıf yapanlar <span id="backlinkCount" class="pill">0</span></div>
+        <div id="backlinks" class="linklist"></div>
+      </div>
+      <div class="side-block">
+        <div class="side-sub">Bu nottan çıkanlar <span id="outlinkCount" class="pill">0</span></div>
+        <div id="outlinks" class="linklist"></div>
+      </div>
+      <div class="side-block">
+        <div class="side-sub">Kırık bağlantılar</div>
+        <div id="brokenlinks" class="linklist"></div>
+      </div>
+      <div class="side-block">
+        <div class="side-head">Ekler</div>
+        <div id="attachments" class="attachments"></div>
+        <button class="btn btn-sm btn-ghost" id="btnAttach">＋ Dosya ekle (PDF, görsel…)</button>
+        <input type="file" id="fileInput" multiple hidden>
+      </div>
+      <div class="side-block">
+        <div class="side-head">Bu notun günlüğü</div>
+        <div id="noteLog" class="linklist"></div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ======================= ÇALIŞMA MASASI ======================== -->
+  <section class="view" data-view="desk">
+    <div class="desk">
+      <div class="desk-col">
+        <div class="desk-head">
+          <span class="desk-label">Kaynak / okunan</span>
+          <select id="deskLeft" class="input"></select>
+          <button class="btn btn-sm" id="deskSwap" title="Panelleri değiştir">⇄</button>
+        </div>
+        <div class="reader desk-body" id="deskLeftBody"></div>
+      </div>
+      <div class="desk-split" id="deskSplit"></div>
+      <div class="desk-col">
+        <div class="desk-head">
+          <span class="desk-label">Sentez / kendi yorumun</span>
+          <select id="deskRight" class="input"></select>
+          <button class="btn btn-sm" id="deskQuote" title="Seçili metni alıntı olarak aktar">❝ Alıntıyı aktar</button>
+        </div>
+        <textarea id="deskRightBody" class="desk-body" spellcheck="false" placeholder="Sağ panelde kendi sentezini yaz. Solda seçtiğin metni “Alıntıyı aktar” ile künyesiyle birlikte buraya taşı."></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================= AĞ =============================== -->
+  <section class="view" data-view="graph">
+    <div class="graph-wrap">
+      <canvas id="graphCanvas"></canvas>
+      <div class="graph-controls">
+        <label class="check"><input type="checkbox" id="gTags"> Etiketleri düğüm olarak göster</label>
+        <label class="check"><input type="checkbox" id="gOrphans"> Yalnız bağlantısız notlar</label>
+        <label class="check"><input type="checkbox" id="gLabels" checked> Etiketleri yaz</label>
+        <label class="range">Yayılma <input type="range" id="gSpread" min="40" max="260" value="120"></label>
+        <button class="btn btn-sm" id="gReset">Görünümü sıfırla</button>
+        <div class="graph-legend" id="graphLegend"></div>
+      </div>
+      <div class="graph-info" id="graphInfo"></div>
+    </div>
+  </section>
+
+  <!-- =========================== GÜNLÜK ============================= -->
+  <section class="view" data-view="log">
+    <div class="log-wrap">
+      <div class="log-head">
+        <h2>Araştırma günlüğü</h2>
+        <div class="seg" id="logFilter">
+          <button class="seg-btn is-active" data-log="all">Tümü</button>
+          <button class="seg-btn" data-log="session">Seanslar</button>
+          <button class="seg-btn" data-log="note">Notlar</button>
+          <button class="seg-btn" data-log="source">Kaynaklar</button>
+        </div>
+      </div>
+      <div class="log-stats" id="logStats"></div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </section>
+
+  <!-- ========================== KAYNAKLAR ============================ -->
+  <section class="view" data-view="sources">
+    <div class="sources-wrap">
+      <div class="log-head">
+        <h2>Kaynak künyeleri</h2>
+        <input id="sourceSearch" class="input" placeholder="Yazar, eser, yayın yeri…">
+      </div>
+      <div class="table-wrap"><table class="table" id="sourceTable"></table></div>
+    </div>
+  </section>
+</main>
+
+<!-- ======================== HIZLI NOT ============================== -->
+<div class="overlay" id="quickOverlay" hidden>
+  <div class="quick">
+    <div class="quick-head">
+      <strong>Hızlı Not</strong>
+      <span class="muted">Enter ile kaydet · Shift+Enter alt satır · Esc kapat</span>
+    </div>
+    <textarea id="quickText" placeholder="Aklına geleni buraya bırak. İlk satır başlık olur. #etiket ve [[bağlantı]] yazabilirsin."></textarea>
+    <div class="quick-foot">
+      <select id="quickType" class="input"></select>
+      <input id="quickSource" class="input" placeholder="Kaynak / URL (isteğe bağlı)">
+      <label class="check"><input type="checkbox" id="quickOpen"> Kaydedip aç</label>
+      <button class="btn btn-accent" id="quickSave">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== KOMUT PALETİ ============================= -->
+<div class="overlay" id="paletteOverlay" hidden>
+  <div class="palette">
+    <input id="paletteInput" class="palette-input" placeholder="Not ara ya da komut çalıştır…" autocomplete="off">
+    <div id="paletteList" class="palette-list"></div>
+  </div>
+</div>
+
+<!-- ========================== MODAL =============================== -->
+<div class="overlay" id="modalOverlay" hidden>
+  <div class="modal">
+    <div class="modal-head"><strong id="modalTitle"></strong><button class="btn btn-icon" id="modalClose">✕</button></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts"></div>
+<div id="printArea" class="print-area"></div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/markdown.js"></script>
+<script src="assets/js/search.js"></script>
+<script src="assets/js/graph.js"></script>
+<script src="assets/js/seed.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
