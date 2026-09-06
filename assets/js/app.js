@@ -883,7 +883,7 @@
     window.print();
     setTimeout(function () {
       $('#printArea').innerHTML = '';
-      document.title = 'ADA · Araştırma & Düşünce Atölyesi';
+      document.title = 'ADA Düşünce Atölyesi';
     }, 800);
   }
 
