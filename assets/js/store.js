@@ -181,9 +181,12 @@
 
   function migrate(data) {
     var base = emptyState();
-    var out = Object.assign(base, data || {});
-    out.settings = Object.assign(base.settings, data && data.settings);
-    out.desk = Object.assign(base.desk, data && data.desk);
+    var out = Object.assign({}, base, data || {});
+    // Not: varsayılanları taze bir nesneye kopyala. Doğrudan base.settings
+    // üzerine yazarsak, kaydedilmiş ayarlarda eksik olan anahtarlar (ör. sort)
+    // varsayılan değerini kaybeder.
+    out.settings = Object.assign({}, base.settings, (data && data.settings) || {});
+    out.desk = Object.assign({}, base.desk, (data && data.desk) || {});
     out.notes = out.notes || {};
     out.log = out.log || [];
     Object.keys(out.notes).forEach(function (id) {
@@ -212,12 +215,26 @@
 
   function get(id) { return state.notes[id] || null; }
 
+  // Başlık → not eşlemesi. Her [[bağlantı]] için tüm defteri taramak yerine
+  // damgayla geçersizleşen bir dizin tut; bin notluk defterde fark ediliyor.
+  var titleCache = null, titleCacheStamp = -1;
+
+  function titleIndex() {
+    var st = stamp();
+    if (titleCache && titleCacheStamp === st) return titleCache;
+    var map = {};
+    all().forEach(function (n) {
+      var k = norm(n.title);
+      if (k && !map[k]) map[k] = n;
+    });
+    titleCache = map; titleCacheStamp = st;
+    return map;
+  }
+
   function byTitle(title) {
     var k = norm(title);
     if (!k) return null;
-    var list = all();
-    for (var i = 0; i < list.length; i++) if (norm(list[i].title) === k) return list[i];
-    return null;
+    return titleIndex()[k] || null;
   }
 
   function create(patch, opts) {
@@ -254,6 +271,7 @@
     var before = { title: n.title, body: n.body, status: n.status };
     Object.assign(n, patch);
     n.updatedAt = Date.now();
+    delete tagCache[id];
 
     if (patch && patch.status && patch.status !== before.status) {
       log('note.status', id, 'Durum → ' + ADA.statusLabel(patch.status) + ': ' + (n.title || 'Başlıksız'));
@@ -274,6 +292,7 @@
     var n = state.notes[id];
     if (!n) return;
     delete state.notes[id];
+    delete tagCache[id];
     log('note.delete', null, 'Not silindi: ' + (n.title || 'Başlıksız'));
     (n.files || []).forEach(function (fid) { ADA.files.remove(fid); });
     scheduleSave();
@@ -330,6 +349,68 @@
   function brokenlinks(id) {
     return (linkIndex().broken[id] || []);
   }
+  // Bağlantısız değinme: başka bir notun metninde bu notun başlığı düz metin
+  // olarak geçiyor ama [[ ]] ile bağlanmamış. Zettelkasten'de kaçan bağlantıyı
+  // yakalamanın en verimli yolu budur.
+  // Küçük harfe indirger ama UZUNLUĞU KORUR: bulunan konum ham gövdede de
+  // geçerli olsun ki "bağla" düğmesi doğru yeri sarmalayabilsin.
+  function foldKeepLen(s) {
+    return ADA.fold ? ADA.fold(s) : String(s || '').toLowerCase();
+  }
+  var WORDISH = /[\p{L}\p{N}]/u;
+
+  function mentions(id) {
+    var n = get(id);
+    if (!n || !n.title || n.title.trim().length < 3) return [];
+    var needle = foldKeepLen(n.title.trim());
+    var linked = linkIndex().in[id] || [];
+    var out = [];
+
+    all().forEach(function (other) {
+      if (other.id === id) return;
+      if (linked.indexOf(other.id) >= 0) return;            // zaten bağlanmış
+      var body = String(other.body || '');
+      // [[...]] ve `kod` parçalarını aynı uzunlukta boşlukla maskele
+      var masked = body
+        .replace(/\[\[[^\]]*\]\]/g, blank)
+        .replace(/`[^`]*`/g, blank);
+      var hay = foldKeepLen(masked);
+      var at = -1, from = 0;
+      while ((at = hay.indexOf(needle, from)) >= 0) {
+        var before = hay[at - 1], after = hay[at + needle.length];
+        if ((!before || !WORDISH.test(before)) && (!after || !WORDISH.test(after))) break;
+        from = at + 1;
+        at = -1;
+      }
+      if (at < 0) return;
+      var lineStart = body.lastIndexOf('\n', at) + 1;
+      var lineEnd = body.indexOf('\n', at);
+      if (lineEnd < 0) lineEnd = body.length;
+      out.push({
+        note: other,
+        at: at,
+        length: needle.length,
+        text: body.slice(at, at + needle.length),
+        line: body.slice(lineStart, lineEnd).trim()
+      });
+    });
+    return out;
+  }
+
+  function blank(m) { return new Array(m.length + 1).join(' '); }
+
+  // Değinmeyi gerçek bağlantıya çevir: geçen ifadeyi [[ ]] içine alır.
+  function linkMention(sourceId, at, length) {
+    var n = get(sourceId);
+    if (!n) return false;
+    var body = n.body || '';
+    if (at < 0 || at + length > body.length) return false;
+    var next = body.slice(0, at) + '[[' + body.slice(at, at + length) + ']]' + body.slice(at + length);
+    update(sourceId, { body: next }, { log: false });
+    log('note.edit', sourceId, 'Bağlantı kuruldu: ' + body.slice(at, at + length));
+    return true;
+  }
+
   function orphans() {
     var idx = linkIndex();
     return all().filter(function (n) {
@@ -340,10 +421,18 @@
   /* -------------------------------- etiketler ------------------------------ */
 
   // Notun etiketleri = künyedeki yapılandırılmış etiketler + metin içindeki #etiketler
+  // Sonuç not başına önbelleklenir: liste ve etiket ağacı her çizimde tüm
+  // gövdeleri yeniden taramasın.
+  var tagCache = {};
+
   ADA.tagsOf = function (n) {
+    if (!n) return [];
+    var hit = tagCache[n.id];
+    if (hit && hit.stamp === n.updatedAt && hit.len === (n.tags || []).length) return hit.tags;
     var out = (n.tags || []).slice();
     var inline = (ADA.md && ADA.md.extractTags) ? ADA.md.extractTags(n.body || '') : [];
     inline.forEach(function (t) { if (out.indexOf(t) === -1) out.push(t); });
+    tagCache[n.id] = { stamp: n.updatedAt, len: (n.tags || []).length, tags: out };
     return out;
   };
 
@@ -509,6 +598,8 @@
     backlinks: backlinks,
     outlinks: outlinks,
     brokenlinks: brokenlinks,
+    mentions: mentions,
+    linkMention: linkMention,
     orphans: orphans,
     tagCounts: tagCounts,
     log: log,

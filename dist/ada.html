@@ -325,6 +325,29 @@ mark, .hl { background: var(--accent-soft); color: var(--fg); border-radius: 2px
   padding: 16px 20px 60px; font-family: var(--mono); font-size: 13.5px; line-height: 1.7;
   tab-size: 2;
 }
+/* [[ ]] yazarken çıkan başlık tamamlama listesi */
+.editor-col-write { position: relative; }
+.autocomplete {
+  position: absolute; z-index: 30; width: 260px; max-height: 216px; overflow-y: auto;
+  background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 9px;
+  box-shadow: var(--shadow); padding: 4px;
+}
+.ac-item {
+  display: flex; align-items: baseline; gap: 8px; padding: 5px 8px;
+  border-radius: 6px; cursor: pointer; font-family: var(--sans);
+}
+.ac-item .t { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-item .m { margin-left: auto; font-size: 10.5px; color: var(--fg-3); white-space: nowrap; }
+.ac-item.is-sel { background: var(--accent-soft); }
+.ac-item.is-sel .t { color: var(--accent); font-weight: 600; }
+#caretMirror { pointer-events: none; }
+
+.mention-link {
+  margin-top: 6px; font-size: 11.5px; padding: 2px 7px;
+  border-style: dashed; color: var(--accent);
+}
+.mention-link:hover { border-style: solid; }
+
 .ref-bar {
   display: flex; align-items: center; gap: 8px; padding: 6px 12px;
   background: var(--bg-3); border-bottom: 1px solid var(--line); font-size: 12px;
@@ -581,6 +604,74 @@ textarea.desk-body {
   .wikilink, .tagref { color: #333; border: 0; }
 }
 
+/* ------------------------------ dar ekran -------------------------------- */
+/* Telefonda üç panelli düzen çalışmaz: liste çekmeceye iner, editör ile sağ
+   panel tek kolonda alt alta akar. Tüm kurallar bu sorgunun içinde kalır,
+   masaüstü düzeni etkilenmez. */
+.mobile-only { display: none; }
+
+@media (max-width: 760px) {
+  .mobile-only { display: inline-flex; }
+
+  .topbar { flex-wrap: wrap; height: auto; padding: 7px 10px 8px; gap: 8px 10px; }
+  .brand { order: 1; }
+  .topbar-actions { order: 2; margin-left: auto; }
+  .search-wrap { order: 3; flex: 1 1 100%; max-width: none; }
+  .views { order: 4; flex: 1 1 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .vtab { flex: 0 0 auto; }
+  #btnQuick { padding: 6px 9px; }
+
+  .view.is-active { flex-direction: column; overflow-y: auto; }
+
+  .pane-left {
+    position: absolute; top: 0; bottom: 0; left: 0; z-index: 30;
+    width: 84%; max-width: 320px; flex-basis: auto;
+    transform: translateX(-102%); transition: transform .18s ease;
+    box-shadow: var(--shadow);
+  }
+  body.drawer-open .pane-left { transform: none; }
+  body.drawer-open .pane-center::before {
+    content: ""; position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .38);
+  }
+
+  /* Tek kolonda her şey içeriği kadar yer kaplar; kaydırma görünümün
+     kendisinde olur. İç kutular kendi içinde kaydırılırsa taşıp üst üste
+     binerler. */
+  .pane-center { flex: 0 0 auto; overflow: visible; }
+  #editor { flex: 0 0 auto; }
+  .pane-right {
+    display: block; width: 100%; flex: 0 0 auto; overflow: visible;
+    border-left: 0; border-top: 1px solid var(--line);
+  }
+
+  .editor-head { flex-wrap: wrap; }
+  .title-input { flex: 1 1 100%; font-size: 19px; }
+  .editor-body { flex-direction: column; height: auto; }
+  .editor-col { flex: 0 0 auto; overflow: visible; }
+  #noteBody { min-height: 46vh; padding-bottom: 20px; }
+  .reader { overflow: visible; max-height: none; padding-bottom: 24px; }
+  .editor-split { width: auto; height: 1px; }
+  .autocomplete { width: 220px; }
+
+  .desk { flex-direction: column; }
+  .desk-col { flex: 0 0 auto; }
+  .desk-body { min-height: 44vh; }
+  .desk-split { width: auto; height: 1px; }
+  .desk-head { flex-wrap: wrap; }
+
+  .graph-controls { width: auto; left: 8px; right: 8px; }
+  .log-wrap, .sources-wrap { padding: 14px 12px 40px; }
+  .log-head { flex-wrap: wrap; }
+  .log-head .input { margin-left: 0; width: 100%; }
+  .quick-foot { flex-wrap: wrap; }
+  .meta-panel { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 460px) {
+  .meta-panel { grid-template-columns: 1fr; }
+  .brand-sub { display: none; }
+}
+
 /* kaydırma çubukları */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 6px; border: 3px solid var(--bg); }
@@ -604,6 +695,7 @@ textarea.desk-body {
 </script>
 
 <header class="topbar">
+  <button id="btnDrawer" class="btn btn-icon mobile-only" title="Not listesi" aria-label="Not listesini aç">☰</button>
   <div class="brand" title="Araştırma &amp; Düşünce Atölyesi">
     <span class="brand-mark">ADA</span>
     <span class="brand-sub">Araştırma &amp; Düşünce Atölyesi</span>
@@ -620,7 +712,6 @@ textarea.desk-body {
   <div class="search-wrap">
     <input id="globalSearch" type="search" autocomplete="off" spellcheck="false"
            placeholder="Ara:  metin · #etiket · tur:makale · durum:incelenecek · yazar:…">
-    <div id="searchResults" class="dropdown" hidden></div>
   </div>
 
   <div class="topbar-actions">
@@ -685,7 +776,7 @@ textarea.desk-body {
       </div>
 
       <div class="list-meta"><span id="listCount"></span></div>
-      <div class="note-list" id="noteList"></div>
+      <div class="note-list" id="noteList" role="listbox" aria-label="Not listesi"></div>
     </aside>
 
     <div class="pane pane-center" id="paneCenter">
@@ -774,6 +865,10 @@ textarea.desk-body {
       <div class="side-block">
         <div class="side-sub">Kırık bağlantılar</div>
         <div id="brokenlinks" class="linklist"></div>
+      </div>
+      <div class="side-block">
+        <div class="side-sub">Bağlantısız değinmeler <span id="mentionCount" class="pill">0</span></div>
+        <div id="mentions" class="linklist"></div>
       </div>
       <div class="side-block">
         <div class="side-head">Ekler</div>
@@ -1076,9 +1171,12 @@ textarea.desk-body {
 
   function migrate(data) {
     var base = emptyState();
-    var out = Object.assign(base, data || {});
-    out.settings = Object.assign(base.settings, data && data.settings);
-    out.desk = Object.assign(base.desk, data && data.desk);
+    var out = Object.assign({}, base, data || {});
+    // Not: varsayılanları taze bir nesneye kopyala. Doğrudan base.settings
+    // üzerine yazarsak, kaydedilmiş ayarlarda eksik olan anahtarlar (ör. sort)
+    // varsayılan değerini kaybeder.
+    out.settings = Object.assign({}, base.settings, (data && data.settings) || {});
+    out.desk = Object.assign({}, base.desk, (data && data.desk) || {});
     out.notes = out.notes || {};
     out.log = out.log || [];
     Object.keys(out.notes).forEach(function (id) {
@@ -1107,12 +1205,26 @@ textarea.desk-body {
 
   function get(id) { return state.notes[id] || null; }
 
+  // Başlık → not eşlemesi. Her [[bağlantı]] için tüm defteri taramak yerine
+  // damgayla geçersizleşen bir dizin tut; bin notluk defterde fark ediliyor.
+  var titleCache = null, titleCacheStamp = -1;
+
+  function titleIndex() {
+    var st = stamp();
+    if (titleCache && titleCacheStamp === st) return titleCache;
+    var map = {};
+    all().forEach(function (n) {
+      var k = norm(n.title);
+      if (k && !map[k]) map[k] = n;
+    });
+    titleCache = map; titleCacheStamp = st;
+    return map;
+  }
+
   function byTitle(title) {
     var k = norm(title);
     if (!k) return null;
-    var list = all();
-    for (var i = 0; i < list.length; i++) if (norm(list[i].title) === k) return list[i];
-    return null;
+    return titleIndex()[k] || null;
   }
 
   function create(patch, opts) {
@@ -1149,6 +1261,7 @@ textarea.desk-body {
     var before = { title: n.title, body: n.body, status: n.status };
     Object.assign(n, patch);
     n.updatedAt = Date.now();
+    delete tagCache[id];
 
     if (patch && patch.status && patch.status !== before.status) {
       log('note.status', id, 'Durum → ' + ADA.statusLabel(patch.status) + ': ' + (n.title || 'Başlıksız'));
@@ -1169,6 +1282,7 @@ textarea.desk-body {
     var n = state.notes[id];
     if (!n) return;
     delete state.notes[id];
+    delete tagCache[id];
     log('note.delete', null, 'Not silindi: ' + (n.title || 'Başlıksız'));
     (n.files || []).forEach(function (fid) { ADA.files.remove(fid); });
     scheduleSave();
@@ -1225,6 +1339,68 @@ textarea.desk-body {
   function brokenlinks(id) {
     return (linkIndex().broken[id] || []);
   }
+  // Bağlantısız değinme: başka bir notun metninde bu notun başlığı düz metin
+  // olarak geçiyor ama [[ ]] ile bağlanmamış. Zettelkasten'de kaçan bağlantıyı
+  // yakalamanın en verimli yolu budur.
+  // Küçük harfe indirger ama UZUNLUĞU KORUR: bulunan konum ham gövdede de
+  // geçerli olsun ki "bağla" düğmesi doğru yeri sarmalayabilsin.
+  function foldKeepLen(s) {
+    return ADA.fold ? ADA.fold(s) : String(s || '').toLowerCase();
+  }
+  var WORDISH = /[\p{L}\p{N}]/u;
+
+  function mentions(id) {
+    var n = get(id);
+    if (!n || !n.title || n.title.trim().length < 3) return [];
+    var needle = foldKeepLen(n.title.trim());
+    var linked = linkIndex().in[id] || [];
+    var out = [];
+
+    all().forEach(function (other) {
+      if (other.id === id) return;
+      if (linked.indexOf(other.id) >= 0) return;            // zaten bağlanmış
+      var body = String(other.body || '');
+      // [[...]] ve `kod` parçalarını aynı uzunlukta boşlukla maskele
+      var masked = body
+        .replace(/\[\[[^\]]*\]\]/g, blank)
+        .replace(/`[^`]*`/g, blank);
+      var hay = foldKeepLen(masked);
+      var at = -1, from = 0;
+      while ((at = hay.indexOf(needle, from)) >= 0) {
+        var before = hay[at - 1], after = hay[at + needle.length];
+        if ((!before || !WORDISH.test(before)) && (!after || !WORDISH.test(after))) break;
+        from = at + 1;
+        at = -1;
+      }
+      if (at < 0) return;
+      var lineStart = body.lastIndexOf('\n', at) + 1;
+      var lineEnd = body.indexOf('\n', at);
+      if (lineEnd < 0) lineEnd = body.length;
+      out.push({
+        note: other,
+        at: at,
+        length: needle.length,
+        text: body.slice(at, at + needle.length),
+        line: body.slice(lineStart, lineEnd).trim()
+      });
+    });
+    return out;
+  }
+
+  function blank(m) { return new Array(m.length + 1).join(' '); }
+
+  // Değinmeyi gerçek bağlantıya çevir: geçen ifadeyi [[ ]] içine alır.
+  function linkMention(sourceId, at, length) {
+    var n = get(sourceId);
+    if (!n) return false;
+    var body = n.body || '';
+    if (at < 0 || at + length > body.length) return false;
+    var next = body.slice(0, at) + '[[' + body.slice(at, at + length) + ']]' + body.slice(at + length);
+    update(sourceId, { body: next }, { log: false });
+    log('note.edit', sourceId, 'Bağlantı kuruldu: ' + body.slice(at, at + length));
+    return true;
+  }
+
   function orphans() {
     var idx = linkIndex();
     return all().filter(function (n) {
@@ -1235,10 +1411,18 @@ textarea.desk-body {
   /* -------------------------------- etiketler ------------------------------ */
 
   // Notun etiketleri = künyedeki yapılandırılmış etiketler + metin içindeki #etiketler
+  // Sonuç not başına önbelleklenir: liste ve etiket ağacı her çizimde tüm
+  // gövdeleri yeniden taramasın.
+  var tagCache = {};
+
   ADA.tagsOf = function (n) {
+    if (!n) return [];
+    var hit = tagCache[n.id];
+    if (hit && hit.stamp === n.updatedAt && hit.len === (n.tags || []).length) return hit.tags;
     var out = (n.tags || []).slice();
     var inline = (ADA.md && ADA.md.extractTags) ? ADA.md.extractTags(n.body || '') : [];
     inline.forEach(function (t) { if (out.indexOf(t) === -1) out.push(t); });
+    tagCache[n.id] = { stamp: n.updatedAt, len: (n.tags || []).length, tags: out };
     return out;
   };
 
@@ -1404,6 +1588,8 @@ textarea.desk-body {
     backlinks: backlinks,
     outlinks: outlinks,
     brokenlinks: brokenlinks,
+    mentions: mentions,
+    linkMention: linkMention,
     orphans: orphans,
     tagCounts: tagCounts,
     log: log,
@@ -1439,7 +1625,7 @@ textarea.desk-body {
 
   var RE_WIKI = /\[\[([^\]|]+?)(?:\|([^\]]*?))?\]\]/g;
   var RE_FILE = /!\[\[dosya:([^\]|]+?)(?:\|([^\]]*?))?\]\]/g;
-  var RE_TAG = /(^|[\s(【«"'])#([\p{L}\p{N}_-]+(?:\/[\p{L}\p{N}_-]+)*)/gu;
+  var RE_TAG = /(^|<br>|[\s(【«])#([\p{L}\p{N}_-]+(?:\/[\p{L}\p{N}_-]+)*)/gu;
   var RE_URL = /(^|[\s(]|<br>)((?:https?:\/\/|www\.)[^\s<)"']+)/g;
 
   function esc(s) {
@@ -1467,7 +1653,9 @@ textarea.desk-body {
     text = text.replace(RE_WIKI, function (m, target, alias) {
       var t = target.trim();
       var exists = ctx && ctx.resolve ? !!ctx.resolve(t) : true;
-      return '<a class="wikilink' + (exists ? '' : ' is-broken') + '" data-wiki="' +
+      var href = (ctx && ctx.href) ? ctx.href(t) : null;
+      return '<a class="wikilink' + (exists ? '' : ' is-broken') + '"' +
+        (href ? ' href="' + escAttr(href) + '"' : '') + ' data-wiki="' +
         escAttr(t) + '" title="' + escAttr(exists ? t : t + ' — not yok, tıkla oluştur') + '">' +
         esc((alias || t).trim()) + '</a>';
     });
@@ -1620,7 +1808,10 @@ textarea.desk-body {
 
   function extractLinks(src) {
     var out = [], m;
-    var text = String(src || '').replace(RE_FILE, '');
+    var text = String(src || '')
+      .replace(/```[\s\S]*?```/g, ' ')   // kod bloğu
+      .replace(/`[^`]*`/g, ' ')          // satır içi kod
+      .replace(RE_FILE, '');
     RE_WIKI.lastIndex = 0;
     while ((m = RE_WIKI.exec(text))) {
       var t = m[1].trim();
@@ -1678,6 +1869,13 @@ textarea.desk-body {
     return s;
   }
 
+  // Başlıktan belge içi çapa kimliği üret (dışa aktarımda kullanılır).
+  function anchorId(t) {
+    var map = { 'ı': 'i', 'İ': 'i', 'ş': 's', 'ğ': 'g', 'ü': 'u', 'ö': 'o', 'ç': 'c' };
+    var x = String(t || '').toLocaleLowerCase('tr').replace(/[ışğüöç]/g, function (c) { return map[c] || c; });
+    return 'not-' + (x.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'baslik');
+  }
+
   function toHTMLDoc(notes, title) {
     var css =
       'body{font:16px/1.6 Georgia,serif;max-width:46em;margin:40px auto;padding:0 20px;color:#1c1a17}' +
@@ -1689,13 +1887,23 @@ textarea.desk-body {
       '.blk-comment{border-left:3px solid #2f6b76;background:#eaf2f4;padding:10px 14px;font-family:system-ui,sans-serif;font-size:.95em}' +
       '.blk-comment::before{content:"YORUM";display:block;font-size:9px;letter-spacing:.14em;color:#2f6b76;margin-bottom:5px}' +
       '.wikilink{color:#a2571f;text-decoration:none;border-bottom:1px dotted #a2571f}' +
+      '.wikilink.is-broken{color:#8a857c;border-bottom-style:dashed}' +
+      '.doc{scroll-margin-top:16px}' +
       '.tagref{background:#efece5;border-radius:99px;padding:0 7px;font:12px system-ui,sans-serif;color:#5b554c}' +
       'code{background:#f0ede6;padding:1px 4px;border-radius:3px;font-size:.85em}' +
       'pre{background:#f6f4ef;border:1px solid #e3ded4;padding:10px;border-radius:6px;overflow:auto}';
+    // Dışa aktarılan belge kendi içinde gezilebilir olsun: her not bir çapa,
+    // her [[bağlantı]] o çapaya giden bir bağlantı.
+    var known = {};
+    notes.forEach(function (n) { known[anchorId(n.title)] = true; });
+    var ctx = {
+      resolve: function (t) { return known[anchorId(t)]; },
+      href: function (t) { return known[anchorId(t)] ? '#' + anchorId(t) : null; }
+    };
     var body = notes.map(function (n) {
-      return '<article class="doc"><h1>' + esc(n.title || 'Başlıksız') + '</h1>' +
+      return '<article class="doc" id="' + anchorId(n.title) + '"><h1>' + esc(n.title || 'Başlıksız') + '</h1>' +
         '<div class="doc-meta">' + esc(metaLine(n)) + '</div>' +
-        render(n.body || '', { resolve: function () { return true; } }) + '</article>';
+        render(n.body || '', ctx) + '</article>';
     }).join('\n');
     return '<!doctype html>\n<html lang="tr"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -1745,6 +1953,7 @@ textarea.desk-body {
     toMarkdown: toMarkdown,
     toHTMLDoc: toHTMLDoc,
     metaLine: metaLine,
+    anchorId: anchorId,
     citation: citation
   };
 })();
@@ -2492,11 +2701,24 @@ textarea.desk-body {
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
   function esc(s) { return MD.esc(s); }
+  // flush() ile bekleyen çağrıyı hemen çalıştırabilen debounce. Not değiştirirken
+  // bekleyen kaydı boşaltmak için şart: yoksa son saniyede yazılan cümle,
+  // zamanlayıcı ateşlendiğinde artık başka bir not açık olduğu için kaybolur.
   function debounce(fn, ms) {
-    var t; return function () {
-      var a = arguments, c = this;
-      clearTimeout(t); t = setTimeout(function () { fn.apply(c, a); }, ms);
+    var t = null, args = null, ctx = null;
+    function wrapped() {
+      args = arguments; ctx = this;
+      if (t) clearTimeout(t);
+      t = setTimeout(function () { t = null; fn.apply(ctx, args); }, ms);
+    }
+    wrapped.flush = function () {
+      if (!t) return;
+      clearTimeout(t); t = null;
+      fn.apply(ctx, args);
     };
+    wrapped.cancel = function () { if (t) { clearTimeout(t); t = null; } };
+    wrapped.pending = function () { return !!t; };
+    return wrapped;
   }
 
   var ui = {
@@ -2601,6 +2823,7 @@ textarea.desk-body {
   /* =============================== görünümler ============================== */
 
   function setView(v) {
+    if (v !== ui.view) flushEdits();
     ui.view = v;
     $$('#viewNav .vtab').forEach(function (b) { b.classList.toggle('is-active', b.dataset.view === v); });
     $$('main .view').forEach(function (s) { s.classList.toggle('is-active', s.dataset.view === v); });
@@ -2657,7 +2880,9 @@ textarea.desk-body {
     host.innerHTML = list.map(function (n) {
       var t = ADA.typeById(n.type);
       var tags = ADA.tagsOf(n);
-      return '<div class="note-item' + (n.id === ui.currentId ? ' is-active' : '') + '" data-id="' + n.id + '">' +
+      return '<div class="note-item' + (n.id === ui.currentId ? ' is-active' : '') +
+        '" data-id="' + n.id + '" tabindex="0" role="option" aria-selected="' +
+        (n.id === ui.currentId ? 'true' : 'false') + '">' +
         '<div class="t">' + (words.length ? ADA.search.highlight(n.title || 'Başlıksız', words) : esc(n.title || 'Başlıksız')) + '</div>' +
         '<div class="s">' + (words.length ? ADA.search.snippet(n, words, 110) : esc(plainText(n.body).slice(0, 110))) + '</div>' +
         '<div class="r">' +
@@ -2714,11 +2939,14 @@ textarea.desk-body {
   function openNote(id, opts) {
     var n = S.get(id);
     if (!n) return;
+    flushEdits();                       // açık nottaki bekleyen yazımı kaybetme
+    closeAutocomplete();
     if (ui.currentId && ui.currentId !== id && (!opts || opts.history !== false)) {
       ui.history.push(ui.currentId);
       if (ui.history.length > 30) ui.history.shift();
     }
     ui.currentId = id;
+    document.body.classList.remove('drawer-open');
     if (ui.view !== 'notes') setView('notes');
     renderEditor();
     renderList();
@@ -2789,6 +3017,10 @@ textarea.desk-body {
   }
 
   function renderTagBar(n) {
+    // Yeniden çizim, kullanıcı etiket yazarken odağı düşürmesin.
+    var old = $('#tagAdd');
+    var keep = (old && document.activeElement === old) ? old.value : null;
+
     var inline = MD.extractTags(n.body || '');
     var html = (n.tags || []).map(function (t) {
       return '<span class="tag-pill">#' + esc(t) + '<button data-rmtag="' + esc(t) + '" title="kaldır">✕</button></span>';
@@ -2796,20 +3028,45 @@ textarea.desk-body {
     html += inline.filter(function (t) { return (n.tags || []).indexOf(t) < 0; }).map(function (t) {
       return '<span class="tag-pill" title="metin içinden geldi" style="opacity:.72">#' + esc(t) + '</span>';
     }).join('');
-    html += '<input class="tag-add" id="tagAdd" placeholder="+ etiket (felsefe/etik)">';
+    html += '<input class="tag-add" id="tagAdd" list="tagSuggest" autocomplete="off" ' +
+      'placeholder="+ etiket (felsefe/etik)"><datalist id="tagSuggest">' +
+      tagSuggestions(n).map(function (t) { return '<option value="' + MD.escAttr(t) + '">'; }).join('') +
+      '</datalist>';
     $('#tagBar').innerHTML = html;
+
+    if (keep !== null) {
+      var fresh = $('#tagAdd');
+      fresh.value = keep;
+      fresh.focus();
+    }
   }
 
-  function renderPreview(n) {
+  // Öneriler: defterde kullanılan etiketler + etkin profilin önerdikleri.
+  function tagSuggestions(n) {
+    var used = Object.keys(S.tagCounts());
+    var prof = (ADA.PROFILES[S.state.profile] || {}).tags || [];
+    var have = ADA.tagsOf(n);
+    var out = [];
+    prof.concat(used).forEach(function (t) {
+      if (out.indexOf(t) < 0 && have.indexOf(t) < 0) out.push(t);
+    });
+    return out;
+  }
+
+  function renderPreview(n) { renderPreviewText(n.body || ''); }
+
+  function renderPreviewText(text) {
     var host = $('#preview');
-    host.innerHTML = MD.render(n.body || '', { resolve: function (t) { return S.byTitle(t); } });
+    host.innerHTML = MD.render(text || '', { resolve: function (t) { return S.byTitle(t); } });
     hydrateFiles(host);
   }
 
-  function renderStats(n) {
-    var b = MD.balance(n.body);
-    var words = plainText(n.body).split(/\s+/).filter(Boolean).length;
-    var links = MD.extractLinks(n.body).length;
+  function renderStats(n) { renderStatsText(n.body || ''); }
+
+  function renderStatsText(text) {
+    var b = MD.balance(text);
+    var words = plainText(text).split(/\s+/).filter(Boolean).length;
+    var links = MD.extractLinks(text).length;
     $('#editorStats').textContent =
       words + ' kelime · ❝' + b.quote + ' ✎' + b.comment + ' · ' + links + ' bağlantı';
   }
@@ -2878,12 +3135,28 @@ textarea.desk-body {
         '</div><div class="c">notu oluşturmak için tıkla</div></div>';
     }).join('') : '<div class="none">Yok.</div>';
 
+    renderMentions(n);
     renderAttachments(n);
 
     var lg = S.noteLog(n.id).slice(0, 8);
     $('#noteLog').innerHTML = lg.length ? lg.map(function (e) {
       return '<div class="c muted" style="font-size:11.5px">' + relTime(e.ts) + ' · ' + esc(e.text) + '</div>';
     }).join('') : '<div class="none">Kayıt yok.</div>';
+  }
+
+  // Bağlantısız değinmeler: başlığı düz metinde geçen ama bağlanmamış notlar.
+  function renderMentions(n) {
+    var list = S.mentions(n.id);
+    $('#mentionCount').textContent = list.length;
+    $('#mentions').innerHTML = list.length ? list.map(function (m) {
+      var line = m.line.length > 150 ? m.line.slice(0, 150) + '…' : m.line;
+      return '<div class="linkcard" data-open="' + m.note.id + '">' +
+        '<div class="t">' + esc(m.note.title || 'Başlıksız') + '</div>' +
+        '<div class="c">' + ADA.search.highlight(line, [ADA.fold(m.text)]) + '</div>' +
+        '<button class="btn btn-sm mention-link" data-mention="' + m.note.id +
+        '" data-at="' + m.at + '" data-len="' + m.length + '">[[ ]] olarak bağla</button>' +
+        '</div>';
+    }).join('') : '<div class="none">Başlığı düz metinde geçen bağlanmamış not yok.</div>';
   }
 
   function renderAttachments(n) {
@@ -2946,6 +3219,7 @@ textarea.desk-body {
   }
 
   function buildGraphData() {
+    if (!ui.graph) return;
     var idx = S.linkIndex();
     var notes = S.all();
     var onlyOrphans = $('#gOrphans').checked;
@@ -3123,8 +3397,8 @@ textarea.desk-body {
 
   /* ================================ olaylar ================================ */
 
-  var saveBody = debounce(function () {
-    var n = S.get(ui.currentId);
+  var saveBody = debounce(function (id) {
+    var n = S.get(id || ui.currentId);
     if (!n) return;
     S.update(n.id, { body: $('#noteBody').value });
     renderList();
@@ -3133,22 +3407,69 @@ textarea.desk-body {
     renderFilters();
   }, 600);
 
+  var saveTitle = debounce(function (id) {
+    if (!S.get(id || ui.currentId)) return;
+    S.update(id || ui.currentId, { title: $('#noteTitle').value });
+    renderList();
+  }, 400);
+
+  var saveDesk = debounce(function (id) {
+    var target = id || S.state.desk.right;
+    if (!target || !S.get(target)) return;
+    S.update(target, { body: $('#deskRightBody').value });
+    if (target === ui.currentId) $('#noteBody').value = $('#deskRightBody').value;
+  }, 500);
+
+  // Not/görünüm değiştirmeden önce bekleyen tüm yazımları diske indir.
+  function flushEdits() {
+    saveTitle.flush();
+    saveBody.flush();
+    saveDesk.flush();
+  }
+
   var previewLive = debounce(function () {
-    var n = S.get(ui.currentId);
-    if (!n) return;
-    n.body = $('#noteBody').value;      // anlık önizleme için bellek içi
-    renderPreview(n);
-    renderStats(n);
+    if (!S.get(ui.currentId)) return;
+    // Mağazadaki nesneye dokunmadan, doğrudan editördeki metinden çiz.
+    renderPreviewText($('#noteBody').value);
+    renderStatsText($('#noteBody').value);
   }, 140);
 
-  function insertAtCursor(ta, before, after, placeholder) {
+  /**
+   * Metin ekleme. İki kip:
+   *  - satır tabanlı (alıntı / yorum / liste / başlık): seçim tam satırlara
+   *    genişler, her satırın başındaki eski işaret sökülüp yenisi konur —
+   *    böylece aynı düğme blok tipini değiştirmiş olur.
+   *  - satır içi (kalın, italik, bağlantı): seçim sarmalanır; seçim yoksa
+   *    yer tutucu konur ve SEÇİLİ bırakılır, üstüne yazmak yeter.
+   */
+  function insertAtCursor(ta, before, after, placeholder, linePrefix) {
     var s = ta.selectionStart, e = ta.selectionEnd;
-    var sel = ta.value.slice(s, e) || placeholder || '';
-    var atLineStart = s === 0 || ta.value[s - 1] === '\n';
-    var pre = (before && /^[>:\-#]/.test(before) && !atLineStart) ? '\n' : '';
-    var text = pre + before + sel + (after || '');
-    ta.setRangeText(text, s, e, 'end');
-    if (!ta.value.slice(s, ta.selectionStart).length) ta.selectionStart = ta.selectionEnd = s + text.length;
+    var raw = ta.value.slice(s, e);
+
+    if (linePrefix) {
+      var from = ta.value.lastIndexOf('\n', s - 1) + 1;
+      var endSearch = (e > s && ta.value[e - 1] === '\n') ? e - 1 : e;
+      var to = ta.value.indexOf('\n', endSearch);
+      if (to < 0) to = ta.value.length;
+      var block = ta.value.slice(from, to);
+      var empty = !block.trim();
+      var body = empty ? (placeholder || '') : block;
+      var out = body.split('\n').map(function (l) {
+        return before + l.replace(/^\s*(?:>\s?|::\s?|#{1,6}\s|[-*+]\s)/, '');
+      }).join('\n');
+      ta.setRangeText(out, from, to, 'end');
+      if (empty) {
+        ta.selectionStart = from + before.length;
+        ta.selectionEnd = from + out.length;
+      }
+    } else {
+      var sel = raw || placeholder || '';
+      ta.setRangeText(before + sel + (after || ''), s, e, 'end');
+      if (!raw && sel) {
+        ta.selectionStart = s + before.length;
+        ta.selectionEnd = s + before.length + sel.length;
+      }
+    }
     ta.focus();
     ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
@@ -3156,19 +3477,168 @@ textarea.desk-body {
   function toolbarAction(kind) {
     var ta = $('#noteBody');
     switch (kind) {
-      case 'h2': insertAtCursor(ta, '## ', '', 'Başlık'); break;
+      case 'h2': insertAtCursor(ta, '## ', '', 'Başlık', true); break;
       case 'bold': insertAtCursor(ta, '**', '**', 'kalın'); break;
       case 'italic': insertAtCursor(ta, '*', '*', 'italik'); break;
       case 'mark': insertAtCursor(ta, '==', '==', 'vurgu'); break;
-      case 'quote': insertAtCursor(ta, '> ', '', 'kaynaktan ham alıntı (s. …)'); break;
-      case 'comment': insertAtCursor(ta, ':: ', '', 'kendi yorumun'); break;
+      case 'quote': insertAtCursor(ta, '> ', '', 'kaynaktan ham alıntı (s. …)', true); break;
+      case 'comment': insertAtCursor(ta, ':: ', '', 'kendi yorumun', true); break;
       case 'link': insertAtCursor(ta, '[', '](https://)', 'bağlantı'); break;
       case 'wiki': insertAtCursor(ta, '[[', ']]', 'Kavram'); break;
       case 'tag': insertAtCursor(ta, '#', '', 'etiket'); break;
-      case 'list': insertAtCursor(ta, '- ', '', 'madde'); break;
+      case 'list': insertAtCursor(ta, '- ', '', 'madde', true); break;
       case 'code': insertAtCursor(ta, '`', '`', 'kod'); break;
       case 'file': $('#fileInput').click(); break;
     }
+  }
+
+  /* ------------------- [[ ]] yazarken başlık tamamlama --------------------- */
+
+  var ac = { open: false, from: -1, items: [], sel: 0, el: null };
+
+  function acEl() {
+    if (ac.el) return ac.el;
+    var d = document.createElement('div');
+    d.className = 'autocomplete';
+    d.hidden = true;
+    $('.editor-col-write').appendChild(d);
+    d.addEventListener('mousedown', function (e) {
+      // mousedown: textarea odağı kaybetmeden seçim yapılsın
+      var it = e.target.closest('[data-i]');
+      if (!it) return;
+      e.preventDefault();
+      acAccept(+it.dataset.i);
+    });
+    ac.el = d;
+    return d;
+  }
+
+  function closeAutocomplete() {
+    ac.open = false;
+    if (ac.el) ac.el.hidden = true;
+  }
+
+  // İmlecin ekran konumu: textarea'nın bir kopyasına metni yazıp ölçüyoruz.
+  function caretXY(ta) {
+    var mirror = $('#caretMirror');
+    if (!mirror) {
+      mirror = document.createElement('div');
+      mirror.id = 'caretMirror';
+      mirror.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(mirror);
+    }
+    var cs = getComputedStyle(ta);
+    ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing',
+     'paddingTop', 'paddingLeft', 'paddingRight', 'borderLeftWidth', 'whiteSpace',
+     'wordWrap', 'tabSize'].forEach(function (k) { mirror.style[k] = cs[k]; });
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.left = '-9999px';
+    mirror.style.top = '0';
+    mirror.style.width = ta.clientWidth + 'px';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.textContent = ta.value.slice(0, ta.selectionStart);
+    var marker = document.createElement('span');
+    marker.textContent = '​';
+    mirror.appendChild(marker);
+    var lh = parseFloat(cs.lineHeight) || 20;
+    return {
+      x: marker.offsetLeft,
+      y: marker.offsetTop - ta.scrollTop,
+      line: lh
+    };
+  }
+
+  function updateAutocomplete() {
+    var ta = $('#noteBody');
+    if (!ta || document.activeElement !== ta) return closeAutocomplete();
+    var caret = ta.selectionStart;
+    if (caret !== ta.selectionEnd) return closeAutocomplete();
+
+    // İmlecin solunda kapanmamış bir [[ var mı?
+    var head = ta.value.slice(0, caret);
+    var open = head.lastIndexOf('[[');
+    if (open < 0) return closeAutocomplete();
+    var frag = head.slice(open + 2);
+    if (/[\]\n]/.test(frag) || frag.length > 60) return closeAutocomplete();
+
+    var q = frag.trim();
+    var pool = S.all().filter(function (n) { return n.id !== ui.currentId && n.title; });
+    var hits;
+    if (!q) {
+      hits = pool.sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); }).slice(0, 8);
+    } else {
+      hits = pool.map(function (n) { return { n: n, s: ADA.search.fuzzy(q, n.title) }; })
+        .filter(function (r) { return r.s > 0; })
+        .sort(function (a, b) { return b.s - a.s; })
+        .slice(0, 8)
+        .map(function (r) { return r.n; });
+    }
+
+    ac.items = hits.map(function (n) {
+      return { label: n.title, hint: ADA.typeById(n.type).label };
+    });
+    if (q && !hits.some(function (n) { return ADA.norm(n.title) === ADA.norm(q); })) {
+      ac.items.push({ label: q, hint: 'yeni not', create: true });
+    }
+    if (!ac.items.length) return closeAutocomplete();
+
+    ac.from = open + 2;
+    ac.sel = 0;
+    ac.open = true;
+    drawAutocomplete();
+  }
+
+  function drawAutocomplete() {
+    var d = acEl(), ta = $('#noteBody');
+    d.innerHTML = ac.items.map(function (it, i) {
+      return '<div class="ac-item' + (i === ac.sel ? ' is-sel' : '') + '" data-i="' + i + '">' +
+        '<span class="t">' + esc(it.label) + '</span>' +
+        '<span class="m">' + esc(it.hint) + '</span></div>';
+    }).join('');
+    var pos = caretXY(ta);
+    var maxTop = ta.clientHeight - 40;
+    var top = Math.min(Math.max(0, pos.y + pos.line + 4), maxTop);
+    d.style.left = Math.min(pos.x, Math.max(0, ta.clientWidth - 260)) + 'px';
+    d.style.top = (top + ta.offsetTop) + 'px';
+    d.hidden = false;
+  }
+
+  function acAccept(i) {
+    var it = ac.items[i];
+    var ta = $('#noteBody');
+    if (!it || !ta) return;
+    if (it.create) {
+      var made = S.create({ title: it.label, body: '' });
+      toast('“' + it.label + '” oluşturuldu');
+      renderFilters();
+      // yeni not arka planda kalsın: bağlantıyı tamamlamaya devam
+      void made;
+    }
+    var caret = ta.selectionStart;
+    var after = ta.value.slice(caret);
+    var closing = /^\s*\]\]/.test(after) ? '' : ']]';
+    ta.setRangeText(it.label + closing, ac.from, caret, 'end');
+    if (!closing) {
+      var skip = after.indexOf(']]') + 2;
+      ta.selectionStart = ta.selectionEnd = ac.from + it.label.length + skip;
+    }
+    closeAutocomplete();
+    ta.focus();
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // Listede sırayla gezinme: Alt+↑/↓ her yerden, ok tuşları liste odaktayken.
+  function moveSelection(delta) {
+    var list = filteredNotes();
+    if (!list.length) return;
+    var i = -1;
+    for (var k = 0; k < list.length; k++) if (list[k].id === ui.currentId) { i = k; break; }
+    var next = i < 0 ? 0 : Math.min(list.length - 1, Math.max(0, i + delta));
+    openNote(list[next].id, { history: false });
+    var el = $('.note-item.is-active');
+    if (el && document.activeElement && document.activeElement.classList.contains('note-item')) el.focus();
   }
 
   function toggleTag(tag) {
@@ -3191,6 +3661,7 @@ textarea.desk-body {
     if (!n) return;
     if (!confirm('“' + (n.title || 'Başlıksız') + '” silinsin mi? Bu işlem geri alınamaz.')) return;
     S.remove(n.id);
+    ui.history = ui.history.filter(function (h) { return h !== n.id; });
     ui.currentId = null;
     renderEditor(); renderList(); renderFilters();
     toast('Not silindi');
@@ -3335,6 +3806,7 @@ textarea.desk-body {
   }
 
   function cmd(name) {
+    flushEdits();
     var n = S.get(ui.currentId);
     switch (name) {
       case 'new': createNote(); break;
@@ -3418,6 +3890,8 @@ textarea.desk-body {
       ['Alıntı bloğu', 'Ctrl/⌘ + Shift + A'],
       ['Yorum bloğu', 'Ctrl/⌘ + Shift + Y'],
       ['Not bağlantısı [[ ]]', 'Ctrl/⌘ + L'],
+      ['Başlık tamamlama', '[[ yaz, ↑↓ seç, ⏎'],
+      ['Önceki / sonraki not', 'Alt + ↑ · ↓'],
       ['Kalın / italik', 'Ctrl/⌘ + B · I'],
       ['Kaydet (otomatik zaten)', 'Ctrl/⌘ + S'],
       ['Kapat / geri', 'Esc']
@@ -3430,7 +3904,8 @@ textarea.desk-body {
       ['#felsefe/etik', 'hiyerarşik etiket'],
       ['==vurgu== **kalın** *italik*', 'metin biçimleri'],
       ['- madde · 1. madde · ```kod```', 'liste ve kod'],
-      ['![[dosya:ID|ad]]', 'ek dosya (📎 düğmesiyle otomatik eklenir)']
+      ['![[dosya:ID|ad]]', 'ek dosya (📎 düğmesiyle otomatik eklenir)'],
+      ['[[ yazınca', 'başlık listesi açılır; yoksa yeni not önerir']
     ];
     openModal('Kısayollar ve söz dizimi',
       '<div class="help-grid"><div>' +
@@ -3497,12 +3972,26 @@ textarea.desk-body {
         var first = $('.note-item');
         if (first) openNote(first.dataset.id);
       }
+      if (e.key === 'ArrowDown') {
+        var top = $('.note-item');
+        if (top) { e.preventDefault(); top.focus(); openNote(top.dataset.id, { history: false }); }
+      }
     });
 
     // liste
     $('#noteList').addEventListener('click', function (e) {
       var it = e.target.closest('.note-item');
       if (it) openNote(it.dataset.id);
+    });
+    $('#noteList').addEventListener('keydown', function (e) {
+      var it = e.target.closest('.note-item');
+      if (!it) return;
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNote(it.dataset.id); return; }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        var sib = e.key === 'ArrowDown' ? it.nextElementSibling : it.previousElementSibling;
+        if (sib && sib.classList.contains('note-item')) { sib.focus(); openNote(sib.dataset.id, { history: false }); }
+      }
     });
     $('#listSort').addEventListener('click', function (e) {
       var b = e.target.closest('.seg-btn');
@@ -3536,11 +4025,7 @@ textarea.desk-body {
     // editör: başlık
     var titleBefore = '';
     $('#noteTitle').addEventListener('focus', function () { titleBefore = $('#noteTitle').value; });
-    $('#noteTitle').addEventListener('input', debounce(function () {
-      if (!ui.currentId) return;
-      S.update(ui.currentId, { title: $('#noteTitle').value });
-      renderList();
-    }, 400));
+    $('#noteTitle').addEventListener('input', function () { saveTitle(ui.currentId); });
     $('#noteTitle').addEventListener('blur', function () {
       var n = S.get(ui.currentId);
       if (!n || !titleBefore || titleBefore === n.title) return;
@@ -3560,10 +4045,27 @@ textarea.desk-body {
     });
 
     // editör: gövde
-    $('#noteBody').addEventListener('input', function () { previewLive(); saveBody(); });
-    $('#noteBody').addEventListener('keydown', function (e) {
+    var body = $('#noteBody');
+    body.addEventListener('input', function () {
+      previewLive();
+      saveBody(ui.currentId);
+      updateAutocomplete();
+    });
+    body.addEventListener('keydown', function (e) {
+      if (ac.open) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); ac.sel = (ac.sel + 1) % ac.items.length; drawAutocomplete(); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); ac.sel = (ac.sel - 1 + ac.items.length) % ac.items.length; drawAutocomplete(); return; }
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); acAccept(ac.sel); return; }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeAutocomplete(); return; }
+      }
       if (e.key === 'Tab') { e.preventDefault(); insertAtCursor(this, '  ', ''); }
     });
+    body.addEventListener('keyup', function (e) {
+      if (/^(Arrow(Left|Right|Up|Down)|Home|End)$/.test(e.key)) updateAutocomplete();
+    });
+    body.addEventListener('click', updateAutocomplete);
+    body.addEventListener('blur', closeAutocomplete);
+    body.addEventListener('scroll', function () { if (ac.open) drawAutocomplete(); });
 
     // mod
     $('#editorMode').addEventListener('click', function (e) {
@@ -3654,6 +4156,14 @@ textarea.desk-body {
 
     // sağ panel
     $('#paneRight').addEventListener('click', function (e) {
+      var mm = e.target.closest('[data-mention]');
+      if (mm) {
+        e.stopPropagation();
+        var ok = S.linkMention(mm.dataset.mention, +mm.dataset.at, +mm.dataset.len);
+        toast(ok ? 'Bağlantı kuruldu' : 'Metin değişmiş — bağlantı kurulamadı');
+        if (ok) { renderEditor(); renderList(); }
+        return;
+      }
       var o = e.target.closest('[data-open]');
       if (o) { openNote(o.dataset.open); return; }
       var c = e.target.closest('[data-create]');
@@ -3727,6 +4237,17 @@ textarea.desk-body {
       S.setProfile(this.value);
       toast('Profil: ' + ADA.PROFILES[this.value].label);
     });
+
+    $('#btnDrawer').addEventListener('click', function () {
+      document.body.classList.toggle('drawer-open');
+    });
+    // çekmece açıkken editöre dokunmak onu kapatsın (karartma üzerinden)
+    $('#paneCenter').addEventListener('click', function (e) {
+      if (document.body.classList.contains('drawer-open')) {
+        e.preventDefault();
+        document.body.classList.remove('drawer-open');
+      }
+    }, true);
 
     $('#btnQuick').addEventListener('click', openQuick);
     $('#btnTheme').addEventListener('click', cycleTheme);
@@ -3813,19 +4334,15 @@ textarea.desk-body {
     });
 
     // çalışma masası
-    $('#deskLeft').addEventListener('change', function () { S.setDesk('left', this.value); renderDesk(); });
-    $('#deskRight').addEventListener('change', function () { S.setDesk('right', this.value); renderDesk(); });
+    $('#deskLeft').addEventListener('change', function () { flushEdits(); S.setDesk('left', this.value); renderDesk(); });
+    $('#deskRight').addEventListener('change', function () { flushEdits(); S.setDesk('right', this.value); renderDesk(); });
     $('#deskSwap').addEventListener('click', function () {
+      flushEdits();
       var d = S.state.desk, l = d.left;
       S.setDesk('left', d.right); S.setDesk('right', l);
       renderDesk();
     });
-    $('#deskRightBody').addEventListener('input', debounce(function () {
-      var id = S.state.desk.right;
-      if (!id) return;
-      S.update(id, { body: $('#deskRightBody').value });
-      if (id === ui.currentId) { $('#noteBody').value = $('#deskRightBody').value; }
-    }, 500));
+    $('#deskRightBody').addEventListener('input', function () { saveDesk(S.state.desk.right); });
     $('#deskQuote').addEventListener('click', function () {
       var sel = String(window.getSelection());
       var L = S.get(S.state.desk.left);
@@ -3906,10 +4423,34 @@ textarea.desk-body {
         else if (!$('#quickOverlay').hidden) $('#quickOverlay').hidden = true;
         return;
       }
+      if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        moveSelection(e.key === 'ArrowDown' ? 1 : -1);
+        return;
+      }
       if (!inField && e.key === '/') { e.preventDefault(); $('#globalSearch').focus(); }
     });
 
-    window.addEventListener('beforeunload', function () { S.save(); });
+    window.addEventListener('beforeunload', function () { flushEdits(); S.save(); });
+
+    // Aynı defter başka bir sekmede de açıksa: orada yapılan değişikliği buraya
+    // al. Burada yazım sürüyorsa dokunma — kullanıcının cümlesini ezmektense
+    // uyarmak yeğdir. (storage olayı yalnızca DİĞER sekmelerde tetiklenir.)
+    window.addEventListener('storage', function (e) {
+      if (e.key !== 'ada.db.v1' || !e.newValue) return;
+      var busy = saveBody.pending() || saveTitle.pending() || saveDesk.pending() ||
+        document.activeElement === $('#noteBody') || document.activeElement === $('#noteTitle');
+      if (busy) {
+        toast('Bu defter başka bir sekmede de açık — kayıplara karşı tek sekmede çalış.', 6000);
+        return;
+      }
+      var cur = ui.currentId;
+      S.load();
+      ui.fileUrls = {};
+      renderAll();
+      if (cur && S.get(cur)) openNote(cur, { history: false });
+      toast('Defter başka bir sekmedeki değişiklikle yenilendi');
+    });
     if (window.matchMedia) {
       var mq = window.matchMedia('(prefers-color-scheme: dark)');
       (mq.addEventListener ? mq.addEventListener.bind(mq, 'change') : mq.addListener.bind(mq))(function () {

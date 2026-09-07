@@ -316,6 +316,29 @@ mark, .hl { background: var(--accent-soft); color: var(--fg); border-radius: 2px
   padding: 16px 20px 60px; font-family: var(--mono); font-size: 13.5px; line-height: 1.7;
   tab-size: 2;
 }
+/* [[ ]] yazarken çıkan başlık tamamlama listesi */
+.editor-col-write { position: relative; }
+.autocomplete {
+  position: absolute; z-index: 30; width: 260px; max-height: 216px; overflow-y: auto;
+  background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 9px;
+  box-shadow: var(--shadow); padding: 4px;
+}
+.ac-item {
+  display: flex; align-items: baseline; gap: 8px; padding: 5px 8px;
+  border-radius: 6px; cursor: pointer; font-family: var(--sans);
+}
+.ac-item .t { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-item .m { margin-left: auto; font-size: 10.5px; color: var(--fg-3); white-space: nowrap; }
+.ac-item.is-sel { background: var(--accent-soft); }
+.ac-item.is-sel .t { color: var(--accent); font-weight: 600; }
+#caretMirror { pointer-events: none; }
+
+.mention-link {
+  margin-top: 6px; font-size: 11.5px; padding: 2px 7px;
+  border-style: dashed; color: var(--accent);
+}
+.mention-link:hover { border-style: solid; }
+
 .ref-bar {
   display: flex; align-items: center; gap: 8px; padding: 6px 12px;
   background: var(--bg-3); border-bottom: 1px solid var(--line); font-size: 12px;
@@ -570,6 +593,74 @@ textarea.desk-body {
   .blk-quote { background: #f4f2ec; border-left: 3px solid #888; color: #333; }
   .blk-comment { background: #eef4f5; border-left: 3px solid #356; color: #111; }
   .wikilink, .tagref { color: #333; border: 0; }
+}
+
+/* ------------------------------ dar ekran -------------------------------- */
+/* Telefonda üç panelli düzen çalışmaz: liste çekmeceye iner, editör ile sağ
+   panel tek kolonda alt alta akar. Tüm kurallar bu sorgunun içinde kalır,
+   masaüstü düzeni etkilenmez. */
+.mobile-only { display: none; }
+
+@media (max-width: 760px) {
+  .mobile-only { display: inline-flex; }
+
+  .topbar { flex-wrap: wrap; height: auto; padding: 7px 10px 8px; gap: 8px 10px; }
+  .brand { order: 1; }
+  .topbar-actions { order: 2; margin-left: auto; }
+  .search-wrap { order: 3; flex: 1 1 100%; max-width: none; }
+  .views { order: 4; flex: 1 1 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .vtab { flex: 0 0 auto; }
+  #btnQuick { padding: 6px 9px; }
+
+  .view.is-active { flex-direction: column; overflow-y: auto; }
+
+  .pane-left {
+    position: absolute; top: 0; bottom: 0; left: 0; z-index: 30;
+    width: 84%; max-width: 320px; flex-basis: auto;
+    transform: translateX(-102%); transition: transform .18s ease;
+    box-shadow: var(--shadow);
+  }
+  body.drawer-open .pane-left { transform: none; }
+  body.drawer-open .pane-center::before {
+    content: ""; position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .38);
+  }
+
+  /* Tek kolonda her şey içeriği kadar yer kaplar; kaydırma görünümün
+     kendisinde olur. İç kutular kendi içinde kaydırılırsa taşıp üst üste
+     binerler. */
+  .pane-center { flex: 0 0 auto; overflow: visible; }
+  #editor { flex: 0 0 auto; }
+  .pane-right {
+    display: block; width: 100%; flex: 0 0 auto; overflow: visible;
+    border-left: 0; border-top: 1px solid var(--line);
+  }
+
+  .editor-head { flex-wrap: wrap; }
+  .title-input { flex: 1 1 100%; font-size: 19px; }
+  .editor-body { flex-direction: column; height: auto; }
+  .editor-col { flex: 0 0 auto; overflow: visible; }
+  #noteBody { min-height: 46vh; padding-bottom: 20px; }
+  .reader { overflow: visible; max-height: none; padding-bottom: 24px; }
+  .editor-split { width: auto; height: 1px; }
+  .autocomplete { width: 220px; }
+
+  .desk { flex-direction: column; }
+  .desk-col { flex: 0 0 auto; }
+  .desk-body { min-height: 44vh; }
+  .desk-split { width: auto; height: 1px; }
+  .desk-head { flex-wrap: wrap; }
+
+  .graph-controls { width: auto; left: 8px; right: 8px; }
+  .log-wrap, .sources-wrap { padding: 14px 12px 40px; }
+  .log-head { flex-wrap: wrap; }
+  .log-head .input { margin-left: 0; width: 100%; }
+  .quick-foot { flex-wrap: wrap; }
+  .meta-panel { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 460px) {
+  .meta-panel { grid-template-columns: 1fr; }
+  .brand-sub { display: none; }
 }
 
 /* kaydırma çubukları */

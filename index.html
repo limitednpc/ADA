@@ -24,6 +24,7 @@
 </script>
 
 <header class="topbar">
+  <button id="btnDrawer" class="btn btn-icon mobile-only" title="Not listesi" aria-label="Not listesini aç">☰</button>
   <div class="brand" title="Araştırma &amp; Düşünce Atölyesi">
     <span class="brand-mark">ADA</span>
     <span class="brand-sub">Araştırma &amp; Düşünce Atölyesi</span>
@@ -40,7 +41,6 @@
   <div class="search-wrap">
     <input id="globalSearch" type="search" autocomplete="off" spellcheck="false"
            placeholder="Ara:  metin · #etiket · tur:makale · durum:incelenecek · yazar:…">
-    <div id="searchResults" class="dropdown" hidden></div>
   </div>
 
   <div class="topbar-actions">
@@ -105,7 +105,7 @@
       </div>
 
       <div class="list-meta"><span id="listCount"></span></div>
-      <div class="note-list" id="noteList"></div>
+      <div class="note-list" id="noteList" role="listbox" aria-label="Not listesi"></div>
     </aside>
 
     <div class="pane pane-center" id="paneCenter">
@@ -194,6 +194,10 @@
       <div class="side-block">
         <div class="side-sub">Kırık bağlantılar</div>
         <div id="brokenlinks" class="linklist"></div>
+      </div>
+      <div class="side-block">
+        <div class="side-sub">Bağlantısız değinmeler <span id="mentionCount" class="pill">0</span></div>
+        <div id="mentions" class="linklist"></div>
       </div>
       <div class="side-block">
         <div class="side-head">Ekler</div>

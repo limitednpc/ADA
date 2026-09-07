@@ -61,6 +61,13 @@ Durumlar: **Gelen kutusu · İncelenecek · Okunuyor · İşlendi · Tamamlandı
   cümleyle birlikte. Olmayan bir kavrama bağlanırsan bağlantı kesik çizgili görünür;
   tıklayınca not oluşturulur. Bir notu yeniden adlandırırsan, ona atıf yapan notlardaki
   bağlantıları güncellemeyi önerir.
+- **Başlık tamamlama.** `[[` yazar yazmaz eşleşen not başlıkları imlecin altında
+  listelenir; ↑↓ ile seçip Enter'a basmak bağlantıyı kapatır. Eşleşme yoksa aynı
+  listeden o başlıkla yeni not açabilirsin — akıştan kopmadan.
+- **Bağlantısız değinmeler.** Bir notun başlığı başka bir notun metninde düz metin
+  olarak geçiyorsa ama `[[ ]]` ile bağlanmamışsa, sağ panelde geçtiği cümleyle
+  birlikte listelenir. **“[[ ]] olarak bağla”** düğmesi o ifadeyi yerinde sarmalar.
+  Kaçmış bağlantıyı yakalamanın en hızlı yolu budur.
 - **Atomik not yapısı.** Tek kavrama odaklı küçük notlar için profil şablonları,
   “kelime · ❝alıntı · ✎yorum · bağlantı” sayacı ve *Ağ* görünümündeki bağlantısızlık
   uyarısı bu disiplini destekler.
@@ -122,8 +129,18 @@ Durumlar: **Gelen kutusu · İncelenecek · Okunuyor · İşlendi · Tamamlandı
 - **Local-first.** Notlar `localStorage`da JSON olarak, ekli dosyalar IndexedDB'de
   blob olarak. Ağ isteği yok, telemetri yok, hesap yok. Depolama yazılamazsa
   uyarı verir (yedek al der), sessizce veri kaybetmez.
+- **Kayıp yazım yok.** Yazdıkların gecikmeli (debounce) kaydedilir; not değiştirmek,
+  görünüm değiştirmek, dışa aktarmak ya da sekmeyi kapatmak bekleyen kaydı önce
+  diske indirir. Son saniyede yazılan cümle kaybolmaz.
+- **Telefonda da çalışır.** Dar ekranda üç panel tek kolona iner, not listesi
+  ☰ ile açılan çekmeceye geçer.
+- **Çok sekme koruması.** Aynı defter başka bir sekmede değiştiğinde bu sekme
+  kendini tazeler; burada yazım sürüyorsa dokunmaz, uyarır — cümlenin üstüne
+  yazılmaz.
 - **Dışa aktarım.** JSON (tam yedek, geri yüklenebilir), Markdown (YAML künyeli,
-  Obsidian/Logseq uyumlu), HTML (kendi stilini taşıyan tek dosya), PDF (yazdır).
+  Obsidian/Logseq uyumlu), HTML (tek dosya; notlar arası `[[bağlantı]]`lar belge
+  içi çapalara dönüşür, yani dışa aktarılan defter kendi içinde gezilebilir),
+  PDF (yazdır).
   Tek not ya da tüm defter. Dışa aktarım penceresi metni ekranda da gösterir; indirme
   engelli bir ortamdaysan panoya kopyalayabilirsin.
 - **İçe aktarım.** JSON yedeğini birleştirerek ya da üzerine yazarak geri yükler.
@@ -155,6 +172,8 @@ Durumlar: **Gelen kutusu · İncelenecek · Okunuyor · İşlendi · Tamamlandı
 | Yorum bloğu | `Ctrl/⌘ + Shift + Y` |
 | Not bağlantısı `[[ ]]` | `Ctrl/⌘ + L` |
 | Kalın / italik | `Ctrl/⌘ + B` · `I` |
+| Başlık tamamlama | `[[` yaz · `↑↓` · `⏎` |
+| Önceki / sonraki not | `Alt + ↑` · `Alt + ↓` |
 | Aramaya odaklan | `/` |
 | Kapat | `Esc` |
 

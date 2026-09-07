@@ -14,7 +14,7 @@
 
   var RE_WIKI = /\[\[([^\]|]+?)(?:\|([^\]]*?))?\]\]/g;
   var RE_FILE = /!\[\[dosya:([^\]|]+?)(?:\|([^\]]*?))?\]\]/g;
-  var RE_TAG = /(^|[\s(【«"'])#([\p{L}\p{N}_-]+(?:\/[\p{L}\p{N}_-]+)*)/gu;
+  var RE_TAG = /(^|<br>|[\s(【«])#([\p{L}\p{N}_-]+(?:\/[\p{L}\p{N}_-]+)*)/gu;
   var RE_URL = /(^|[\s(]|<br>)((?:https?:\/\/|www\.)[^\s<)"']+)/g;
 
   function esc(s) {
@@ -42,7 +42,9 @@
     text = text.replace(RE_WIKI, function (m, target, alias) {
       var t = target.trim();
       var exists = ctx && ctx.resolve ? !!ctx.resolve(t) : true;
-      return '<a class="wikilink' + (exists ? '' : ' is-broken') + '" data-wiki="' +
+      var href = (ctx && ctx.href) ? ctx.href(t) : null;
+      return '<a class="wikilink' + (exists ? '' : ' is-broken') + '"' +
+        (href ? ' href="' + escAttr(href) + '"' : '') + ' data-wiki="' +
         escAttr(t) + '" title="' + escAttr(exists ? t : t + ' — not yok, tıkla oluştur') + '">' +
         esc((alias || t).trim()) + '</a>';
     });
@@ -195,7 +197,10 @@
 
   function extractLinks(src) {
     var out = [], m;
-    var text = String(src || '').replace(RE_FILE, '');
+    var text = String(src || '')
+      .replace(/```[\s\S]*?```/g, ' ')   // kod bloğu
+      .replace(/`[^`]*`/g, ' ')          // satır içi kod
+      .replace(RE_FILE, '');
     RE_WIKI.lastIndex = 0;
     while ((m = RE_WIKI.exec(text))) {
       var t = m[1].trim();
@@ -253,6 +258,13 @@
     return s;
   }
 
+  // Başlıktan belge içi çapa kimliği üret (dışa aktarımda kullanılır).
+  function anchorId(t) {
+    var map = { 'ı': 'i', 'İ': 'i', 'ş': 's', 'ğ': 'g', 'ü': 'u', 'ö': 'o', 'ç': 'c' };
+    var x = String(t || '').toLocaleLowerCase('tr').replace(/[ışğüöç]/g, function (c) { return map[c] || c; });
+    return 'not-' + (x.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'baslik');
+  }
+
   function toHTMLDoc(notes, title) {
     var css =
       'body{font:16px/1.6 Georgia,serif;max-width:46em;margin:40px auto;padding:0 20px;color:#1c1a17}' +
@@ -264,13 +276,23 @@
       '.blk-comment{border-left:3px solid #2f6b76;background:#eaf2f4;padding:10px 14px;font-family:system-ui,sans-serif;font-size:.95em}' +
       '.blk-comment::before{content:"YORUM";display:block;font-size:9px;letter-spacing:.14em;color:#2f6b76;margin-bottom:5px}' +
       '.wikilink{color:#a2571f;text-decoration:none;border-bottom:1px dotted #a2571f}' +
+      '.wikilink.is-broken{color:#8a857c;border-bottom-style:dashed}' +
+      '.doc{scroll-margin-top:16px}' +
       '.tagref{background:#efece5;border-radius:99px;padding:0 7px;font:12px system-ui,sans-serif;color:#5b554c}' +
       'code{background:#f0ede6;padding:1px 4px;border-radius:3px;font-size:.85em}' +
       'pre{background:#f6f4ef;border:1px solid #e3ded4;padding:10px;border-radius:6px;overflow:auto}';
+    // Dışa aktarılan belge kendi içinde gezilebilir olsun: her not bir çapa,
+    // her [[bağlantı]] o çapaya giden bir bağlantı.
+    var known = {};
+    notes.forEach(function (n) { known[anchorId(n.title)] = true; });
+    var ctx = {
+      resolve: function (t) { return known[anchorId(t)]; },
+      href: function (t) { return known[anchorId(t)] ? '#' + anchorId(t) : null; }
+    };
     var body = notes.map(function (n) {
-      return '<article class="doc"><h1>' + esc(n.title || 'Başlıksız') + '</h1>' +
+      return '<article class="doc" id="' + anchorId(n.title) + '"><h1>' + esc(n.title || 'Başlıksız') + '</h1>' +
         '<div class="doc-meta">' + esc(metaLine(n)) + '</div>' +
-        render(n.body || '', { resolve: function () { return true; } }) + '</article>';
+        render(n.body || '', ctx) + '</article>';
     }).join('\n');
     return '<!doctype html>\n<html lang="tr"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -320,6 +342,7 @@
     toMarkdown: toMarkdown,
     toHTMLDoc: toHTMLDoc,
     metaLine: metaLine,
+    anchorId: anchorId,
     citation: citation
   };
 })();
